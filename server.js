@@ -171,12 +171,13 @@ app.post('/api/products', requireAuth, (req, res) => {
   if (!name || !ref || !category || !price)
     return res.status(400).json({ error: 'Name, ref, category, and price are required' });
   try {
-    const r = db.run(
+    db.run(
       `INSERT INTO products (name, ref, category, price, wholesale_price, status, season, description)
        VALUES (?, ?, ?, ?, ?, 'new', ?, ?)`,
       [name, ref, category, price, wholesale_price || null, season || null, description || null]
     );
-    res.status(201).json(enrichProducts([db.get('SELECT * FROM products WHERE id = ?', [r.lastInsertRowid])])[0]);
+    const newProduct = db.get('SELECT * FROM products WHERE ref = ?', [ref]);
+    res.status(201).json(enrichProducts([newProduct])[0]);
   } catch (err) {
     if (err.message?.includes('UNIQUE'))
       return res.status(409).json({ error: 'A product with this reference code already exists' });
