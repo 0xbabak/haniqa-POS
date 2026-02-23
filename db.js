@@ -3,7 +3,10 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'haniqa.db');
+// On Fly.io DATA_DIR=/data (persistent volume). Locally falls back to project root.
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = path.join(DATA_DIR, 'haniqa.db');
 
 let _db;
 let _inTx = false;

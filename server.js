@@ -8,8 +8,13 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+// ── DATA DIRECTORY (persistent volume on Fly.io, project root locally) ────────
+const DATA_DIR   = process.env.DATA_DIR || __dirname;
+const sessionsDir = path.join(DATA_DIR, 'sessions');
+if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
+
 // ── UPLOADS ───────────────────────────────────────────────────────────────────
-const uploadsDir = path.join(__dirname, 'public/uploads');
+const uploadsDir = path.join(DATA_DIR, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 const upload = multer({
   storage: multer.diskStorage({
@@ -36,8 +41,9 @@ if (isProd) app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadsDir));
 app.use(session({
-  store:            new FileStore({ path: './sessions', ttl: 86400, retries: 0 }),
+  store:            new FileStore({ path: sessionsDir, ttl: 86400, retries: 0 }),
   secret:           process.env.SESSION_SECRET || 'haniqa-dev-secret',
   resave:           false,
   saveUninitialized: false,

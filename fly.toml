@@ -1,0 +1,32 @@
+# fly.toml — haniqa POS
+# Replace "haniqa-pos" with your actual Fly.io app name if different.
+app = "haniqa-pos"
+primary_region = "ams"
+
+[build]
+
+[env]
+  PORT       = "8080"
+  NODE_ENV   = "production"
+  DATA_DIR   = "/data"
+
+[http_service]
+  internal_port       = 8080
+  force_https         = true
+  auto_stop_machines  = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size = "shared-cpu-1x"
+
+# Persistent volume — stores haniqa.db, sessions/, and uploads/
+# Run once: fly volumes create haniqa_data --size 1 --region ams
+[[mounts]]
+  source      = "haniqa_data"
+  destination = "/data"

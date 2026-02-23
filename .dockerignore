@@ -1,0 +1,13 @@
+node_modules
+.env
+haniqa.db
+sessions/
+public/uploads/
+*.db-shm
+*.db-wal
+.git
+.gitignore
+README.md
+notes.txt
+ecosystem.config.js
+seed-variants.js
