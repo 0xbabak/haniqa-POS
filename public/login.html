@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>haniqa — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div class="auth-screen" id="login-screen">
+  <div class="auth-box">
+    <div class="auth-logo">han<span style="color: var(--pink)">iq</span>a</div>
+    <div class="auth-subtitle">Retail Management System</div>
+
+    <div class="form-grid" style="max-width: 100%">
+      <div class="form-group full">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="login-username" placeholder="Enter username" onkeypress="if(event.key === 'Enter') handleLogin()">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-password" placeholder="Enter password" onkeypress="if(event.key === 'Enter') handleLogin()">
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="handleLogin()" style="width: 100%; margin-top: 8px">Login</button>
+  </div>
+</div>
+
+<!-- ── CASH REGISTER OPENING SCREEN ── -->
+<div class="auth-screen" id="cash-register-screen" style="display: none">
+  <div class="auth-box">
+    <div style="font-size: 48px; margin-bottom: 16px">💰</div>
+    <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 28px; color: var(--text-bright); margin-bottom: 8px; font-weight: 300">Open Cash Register</h2>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 24px">Enter starting cash amount or continue without opening</p>
+
+    <div class="form-group full">
+      <label class="form-label">Starting Cash Amount ($)</label>
+      <input type="number" class="form-input" id="starting-cash" placeholder="0.00" step="0.01" min="0" onkeypress="if(event.key === 'Enter') openCashRegister()">
+    </div>
+
+    <div style="display: flex; gap: 12px; margin-top: 20px">
+      <button class="btn-secondary" onclick="continueWithoutCashRegister()" style="flex: 1">Continue Without</button>
+      <button class="btn-primary" onclick="openCashRegister()" style="flex: 1">Open Register</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function handleLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const btn = document.querySelector('.btn-primary[onclick*="handleLogin"]');
+
+  if (!username || !password) {
+    alert('Please enter username and password');
+    return;
+  }
+
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Invalid username or password');
+      btn.textContent = 'Login';
+      btn.disabled = false;
+      return;
+    }
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('cash-register-screen').style.display = 'flex';
+  } catch (err) {
+    alert('Could not reach server. Is it running?');
+    btn.textContent = 'Login';
+    btn.disabled = false;
+  }
+}
+
+function openCashRegister() {
+  const amount = parseFloat(document.getElementById('starting-cash').value) || 0;
+  if (amount < 0) { alert('Starting cash cannot be negative'); return; }
+  sessionStorage.setItem('cashRegisterOpen', 'true');
+  sessionStorage.setItem('startingCashAmount', amount.toString());
+  window.location.href = '/pos.html';
+}
+
+function continueWithoutCashRegister() {
+  sessionStorage.setItem('cashRegisterOpen', 'false');
+  sessionStorage.setItem('startingCashAmount', '0');
+  window.location.href = '/pos.html';
+}
+</script>
+</body>
+</html>

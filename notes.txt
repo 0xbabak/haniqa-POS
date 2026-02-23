@@ -1,0 +1,4 @@
+1- inhance cash register to get better report out ot if
+2- enhance chat with ai a button that gives full report 
+3- iade
+4- fix light mode too bright 

@@ -1,0 +1,23 @@
+{
+  "name": "haniqa",
+  "version": "1.0.0",
+  "description": "Haniqa Retail Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "session-file-store": "^1.5.0",
+    "sql.js": "^1.10.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

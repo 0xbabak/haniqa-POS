@@ -1,0 +1,7 @@
+node_modules/
+.env
+haniqa.db
+sessions/
+*.db-shm
+*.db-wal
+public/uploads/

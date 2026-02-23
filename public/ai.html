@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>haniqa — Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .bar-wrap   { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .bar-inner  { height: 100%; border-radius: 3px; transition: width 0.7s ease; }
+  .risk-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .fc-row:hover { background: rgba(255,255,255,0.025); }
+
+  .trend-rising   { color: #8fb8a0; }
+  .trend-stable   { color: #c9a84c; }
+  .trend-declining{ color: var(--red, #e07060); }
+
+  .conf-badge {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+  }
+  .conf-high   { background: rgba(143,184,160,0.15); color: #8fb8a0; }
+  .conf-medium { background: rgba(201,168,76,0.15);  color: #c9a84c; }
+  .conf-low    { background: rgba(200,200,200,0.08); color: #666; }
+
+  .prod-color-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border-radius: 2px;
+  }
+  .prod-color-block .prod-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mini-proj-bar {
+    display: inline-block;
+    height: 14px;
+    border-radius: 1px;
+    margin-right: 2px;
+    vertical-align: middle;
+    min-width: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="logo-block">
+    <div class="logo">han<span class="pink-text">iq</span>a</div>
+    <div class="logo-sub" style="color:var(--pink)">Retail Management System</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Point of Sale</div>
+    <div class="nav-item" onclick="window.location='pos.html'">
+      <span class="nav-icon">◉</span> POS Terminal
+    </div>
+    <div class="nav-item" onclick="window.location='pos.html#cashier'">
+      <span class="nav-icon">◪</span> Cash Register
+    </div>
+    <div class="nav-item" onclick="window.location='pos.html#sales'">
+      <span class="nav-icon">◈</span> Sales
+    </div>
+
+    <div class="nav-divider"></div>
+    <div class="nav-label">Insights</div>
+    <div class="nav-item" onclick="window.location='dashboard.html'">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item active" id="nav-analytics" onclick="showPage('analytics', this)">
+      <span class="nav-icon">◻</span> Analytics
+    </div>
+    <div class="nav-item" id="nav-chat" onclick="showPage('ai-chat', this)">
+      <span class="nav-icon">◎</span> Chat with AI
+    </div>
+
+    <div class="nav-divider"></div>
+    <div class="nav-label">Catalogue</div>
+    <div class="nav-item" onclick="window.location='catalogue.html'">
+      <span class="nav-icon">◫</span> All Products
+    </div>
+    <div class="nav-item" onclick="window.location='catalogue.html#add'">
+      <span class="nav-icon">+</span> Add Product
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span id="theme-icon">◐</span> <span id="theme-text">Light Mode</span>
+    </button>
+    <button class="theme-toggle" onclick="logout()" style="color: var(--red); margin-top: 6px">⇥ Sign Out</button>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Analytics</div>
+  </div>
+
+  <!-- ════ ANALYTICS ════ -->
+  <div class="page active" id="page-analytics">
+
+    <div class="section-head" style="display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap">
+      <div style="flex:1">
+        <div class="section-title">Analytics</div>
+        <div class="section-line"></div>
+        <div class="section-meta">Sell-through · Color Performance · ML Demand Forecast</div>
+      </div>
+      <button onclick="generateFullReport()" style="padding:8px 20px; font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.12em; text-transform:uppercase; background:var(--pink); border:none; color:#fff; cursor:pointer; border-radius:2px; margin-bottom:4px; flex-shrink:0; font-weight:400">⬇ Full Report</button>
+      <div id="demo-badge" style="display:none; align-items:center; gap:8px; background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.4); padding:6px 14px; border-radius:2px; margin-bottom:4px; flex-shrink:0">
+        <span style="font-size:16px">◎</span>
+        <div>
+          <div style="font-size:9px; color:#c9a84c; letter-spacing:0.15em; text-transform:uppercase; font-family:'DM Mono',monospace">Demo Preview</div>
+          <div style="font-size:9px; color:var(--text-dim); margin-top:1px">Showing sample data — add real sales to see your own analytics</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ROW 1: Sell-Through + Restock ── -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px">
+
+      <!-- Sell-Through per product -->
+      <div style="background:var(--deep); border:1px solid var(--border); padding:24px">
+        <div style="font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px">Sell-Through Rate</div>
+        <div style="font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--text-bright); font-weight:300; margin-bottom:6px">Per Product — Ranked</div>
+        <div style="font-size:9px; color:var(--text-dim); margin-bottom:16px; display:flex; gap:16px">
+          <span style="color:#8fb8a0">■ ≥70% healthy</span>
+          <span style="color:#c9a84c">■ ≥40% moderate</span>
+          <span style="color:var(--red)">■ &lt;40% slow</span>
+        </div>
+        <div id="sell-through-list" style="max-height:420px; overflow-y:auto; padding-right:4px"></div>
+      </div>
+
+      <!-- Restock Priority -->
+      <div style="background:var(--deep); border:1px solid var(--border); padding:24px">
+        <div style="font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px">Restock Priority</div>
+        <div style="font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--text-bright); font-weight:300; margin-bottom:16px">Low Stock Alert</div>
+        <div id="restock-list" style="max-height:420px; overflow-y:auto; padding-right:4px"></div>
+      </div>
+
+    </div>
+
+    <!-- ── ROW 2: Color Performance per Product ── -->
+    <div style="background:var(--deep); border:1px solid var(--border); padding:24px; margin-bottom:20px">
+      <div style="font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px">Color Performance</div>
+      <div style="font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--text-bright); font-weight:300; margin-bottom:4px">By Product — Individual Breakdown</div>
+      <div style="font-size:9px; color:var(--text-dim); margin-bottom:20px">Sold units and sell-through per color variant, grouped by product</div>
+      <div id="color-performance-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px,1fr)); gap:10px"></div>
+    </div>
+
+    <!-- ── ROW 3: ML Demand Forecast ── -->
+    <div style="background:var(--deep); border:1px solid var(--border); padding:24px; margin-bottom:40px">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px">
+        <div>
+          <div style="font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px">ML Demand Forecast</div>
+          <div style="font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--text-bright); font-weight:300; margin-bottom:4px">Weighted Moving Average · Next 4 Weeks</div>
+          <div style="font-size:9px; color:var(--text-dim)">Based on last 8 weeks of sales data · linear trend projection</div>
+        </div>
+        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.08em; background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.3); padding:4px 10px; border-radius:2px">COMPUTED</div>
+      </div>
+
+      <!-- Legend -->
+      <div style="display:flex; gap:20px; margin-bottom:16px; flex-wrap:wrap">
+        <span style="font-size:9px; color:#8fb8a0">▲ Rising demand</span>
+        <span style="font-size:9px; color:#c9a84c">▶ Stable</span>
+        <span style="font-size:9px; color:var(--red)">▼ Declining</span>
+        <span style="font-size:9px; color:var(--text-dim); margin-left:12px">Confidence: H = high · M = medium · L = low (data availability)</span>
+      </div>
+
+      <!-- Table header -->
+      <div style="display:grid; grid-template-columns:1.8fr 60px 60px 1fr 36px; gap:8px; padding:0 8px 8px; border-bottom:1px solid var(--border)">
+        <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em">Product</span>
+        <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; text-align:center">Trend</span>
+        <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; text-align:right">Vel/wk</span>
+        <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; text-align:center">W1 · W2 · W3 · W4</span>
+        <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; text-align:center">Conf</span>
+      </div>
+      <div id="forecast-table"></div>
+    </div>
+
+  </div><!-- /page-analytics -->
+
+  <!-- ════ CHAT WITH AI ════ -->
+  <div class="page" id="page-ai-chat">
+    <div class="section-head">
+      <div class="section-title">Chat with AI</div>
+      <div class="section-line"></div>
+      <div class="section-meta">Your intelligent fashion business assistant</div>
+    </div>
+
+    <div style="max-width:1200px; margin:0 auto">
+      <div style="background:var(--deep); border:1px solid var(--border); border-radius:4px; overflow:hidden">
+        <div style="padding:20px; border-bottom:1px solid var(--border); background:var(--black)">
+          <div style="display:flex; align-items:center; gap:12px">
+            <div style="width:40px; height:40px; background:linear-gradient(135deg,var(--pink-dim),var(--pink)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px">✨</div>
+            <div>
+              <div style="font-size:14px; color:var(--text-bright); font-weight:500">haniqa AI Assistant</div>
+              <div style="font-size:10px; color:var(--text-dim); letter-spacing:0.05em">Powered by advanced language models</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:32px; min-height:400px; max-height:500px; overflow-y:auto" id="ai-chat-messages">
+          <div style="text-align:center; padding:60px 20px; color:var(--text-dim)">
+            <div style="font-size:48px; margin-bottom:16px; opacity:0.3">💬</div>
+            <h4 style="font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--text-bright); margin-bottom:12px; font-weight:300">Start a Conversation</h4>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:24px">
+              <div class="badge good" style="cursor:pointer; padding:6px 12px">"What should I produce for summer?"</div>
+              <div class="badge good" style="cursor:pointer; padding:6px 12px">"Show me my best sellers"</div>
+              <div class="badge good" style="cursor:pointer; padding:6px 12px">"Analyze my inventory health"</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px; border-top:1px solid var(--border); background:var(--black)">
+          <div style="display:flex; gap:12px; align-items:center">
+            <input type="text" placeholder="Ask me anything about your fashion business…" style="flex:1; background:var(--surface); border:1px solid var(--border); color:var(--text); padding:12px 16px; font-family:'DM Mono',monospace; font-size:12px; outline:none; border-radius:4px" disabled>
+            <button class="btn-primary" style="opacity:0.5; cursor:not-allowed" disabled>Send</button>
+          </div>
+          <div style="margin-top:12px; font-size:10px; color:var(--text-dim); text-align:center">Coming soon with LLM integration</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-ai-chat -->
+
+</div><!-- /main -->
+
+<script>
+// ── AUTH ──
+async function checkAuth() {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) { window.location.href = '/login.html'; throw new Error('unauth'); }
+}
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  sessionStorage.clear();
+  window.location.href = '/login.html';
+}
+
+// ── THEME ──
+function toggleTheme() {
+  document.body.classList.toggle('light-theme');
+  const isLight = document.body.classList.contains('light-theme');
+  document.getElementById('theme-icon').textContent = isLight ? '◑' : '◐';
+  document.getElementById('theme-text').textContent = isLight ? 'Dark Mode' : 'Light Mode';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+function loadTheme() {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-theme');
+    document.getElementById('theme-icon').textContent = '◑';
+    document.getElementById('theme-text').textContent = 'Dark Mode';
+  }
+}
+
+// ── NAV ──
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + id);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles = { analytics: 'Analytics', 'ai-chat': 'Chat with AI' };
+  document.getElementById('topbar-title').textContent = titles[id] || 'Analytics';
+}
+
+// ── CONSTANTS ──
+const GOLD = '#c9a84c';
+
+// ── DEMO DATA (used when no real sales data exists yet) ──────────────────────
+const DUMMY_PRODUCTS = [
+  { id:'d1',  name:'Silk Slip Dress',           category:'tops',        price:'285', sold:156, stock:2  },
+  { id:'d2',  name:'Ribbed Knit Crop Top',       category:'tops',        price:'95',  sold:203, stock:5  },
+  { id:'d3',  name:'Draped Midi Dress',          category:'tops',        price:'340', sold:92,  stock:31 },
+  { id:'d4',  name:'Knit Cardigan',              category:'tops',        price:'165', sold:31,  stock:55 },
+  { id:'d5',  name:'Wide Leg Palazzo Trouser',   category:'bottoms',     price:'195', sold:124, stock:8  },
+  { id:'d6',  name:'Tailored Bermuda Short',     category:'bottoms',     price:'135', sold:67,  stock:19 },
+  { id:'d7',  name:'Linen Maxi Skirt',           category:'bottoms',     price:'175', sold:89,  stock:7  },
+  { id:'d8',  name:'Cargo Trousers',             category:'bottoms',     price:'155', sold:14,  stock:62 },
+  { id:'d9',  name:'Oversized Linen Blazer',     category:'outerwear',   price:'420', sold:87,  stock:23 },
+  { id:'d10', name:'Cotton Utility Jacket',      category:'outerwear',   price:'355', sold:45,  stock:41 },
+  { id:'d11', name:'Woven Tote Bag',             category:'accessories', price:'125', sold:234, stock:12 },
+  { id:'d12', name:'Leather Belt',               category:'accessories', price:'85',  sold:178, stock:3  },
+];
+
+const DUMMY_COLOR_DATA = [
+  { product_id:'d1',  color:'IVORY',       channel:'single',    sold:72,  stock:1  },
+  { product_id:'d1',  color:'BLACK',       channel:'single',    sold:84,  stock:1  },
+  { product_id:'d2',  color:'WHITE',       channel:'single',    sold:98,  stock:2  },
+  { product_id:'d2',  color:'CAMEL',       channel:'single',    sold:67,  stock:2  },
+  { product_id:'d2',  color:'NAVY BLUE',   channel:'single',    sold:38,  stock:1  },
+  { product_id:'d3',  color:'TERRACOTTA',  channel:'single',    sold:51,  stock:18 },
+  { product_id:'d3',  color:'SAGE GREEN',  channel:'single',    sold:41,  stock:13 },
+  { product_id:'d4',  color:'OATMEAL',     channel:'single',    sold:12,  stock:28 },
+  { product_id:'d4',  color:'CHARCOAL',    channel:'single',    sold:10,  stock:16 },
+  { product_id:'d4',  color:'DUSTY ROSE',  channel:'single',    sold:9,   stock:11 },
+  { product_id:'d5',  color:'BLACK',       channel:'wholesale', sold:58,  stock:4  },
+  { product_id:'d5',  color:'ECRU',        channel:'wholesale', sold:42,  stock:2  },
+  { product_id:'d5',  color:'COBALT',      channel:'single',    sold:24,  stock:2  },
+  { product_id:'d6',  color:'KHAKI',       channel:'single',    sold:34,  stock:11 },
+  { product_id:'d6',  color:'WHITE',       channel:'single',    sold:20,  stock:5  },
+  { product_id:'d6',  color:'NAVY BLUE',   channel:'wholesale', sold:13,  stock:3  },
+  { product_id:'d7',  color:'SAND',        channel:'single',    sold:47,  stock:4  },
+  { product_id:'d7',  color:'OLIVE',       channel:'single',    sold:28,  stock:2  },
+  { product_id:'d7',  color:'WHITE',       channel:'wholesale', sold:14,  stock:1  },
+  { product_id:'d8',  color:'ARMY GREEN',  channel:'single',    sold:8,   stock:34 },
+  { product_id:'d8',  color:'BLACK',       channel:'single',    sold:6,   stock:28 },
+  { product_id:'d9',  color:'ECRU',        channel:'wholesale', sold:42,  stock:12 },
+  { product_id:'d9',  color:'CHARCOAL',    channel:'wholesale', sold:28,  stock:7  },
+  { product_id:'d9',  color:'CAMEL',       channel:'single',    sold:17,  stock:4  },
+  { product_id:'d10', color:'KHAKI',       channel:'wholesale', sold:28,  stock:23 },
+  { product_id:'d10', color:'BLACK',       channel:'wholesale', sold:17,  stock:18 },
+  { product_id:'d11', color:'NATURAL',     channel:'single',    sold:112, stock:6  },
+  { product_id:'d11', color:'BLACK',       channel:'single',    sold:78,  stock:4  },
+  { product_id:'d11', color:'TERRACOTTA',  channel:'single',    sold:44,  stock:2  },
+  { product_id:'d12', color:'TAN',         channel:'single',    sold:98,  stock:2  },
+  { product_id:'d12', color:'BLACK',       channel:'single',    sold:80,  stock:1  },
+];
+
+const DUMMY_FORECAST = [
+  { product_id:'d11', name:'Woven Tote Bag',           category:'accessories', price:125, base_weekly:15.2, slope:1.8,  projected_4w:[17,19,21,23], total_projected:80, trend:'rising',   confidence:'high'   },
+  { product_id:'d2',  name:'Ribbed Knit Crop Top',      category:'tops',        price:95,  base_weekly:13.1, slope:2.3,  projected_4w:[15,17,19,22], total_projected:73, trend:'rising',   confidence:'high'   },
+  { product_id:'d12', name:'Leather Belt',              category:'accessories', price:85,  base_weekly:11.4, slope:0.4,  projected_4w:[12,12,11,12], total_projected:47, trend:'stable',   confidence:'high'   },
+  { product_id:'d5',  name:'Wide Leg Palazzo Trouser',  category:'bottoms',     price:195, base_weekly:8.6,  slope:1.2,  projected_4w:[10,11,12,13], total_projected:46, trend:'rising',   confidence:'high'   },
+  { product_id:'d1',  name:'Silk Slip Dress',           category:'tops',        price:285, base_weekly:9.8,  slope:-1.1, projected_4w:[9,8,7,6],    total_projected:30, trend:'declining', confidence:'high'   },
+  { product_id:'d3',  name:'Draped Midi Dress',         category:'tops',        price:340, base_weekly:4.8,  slope:0.8,  projected_4w:[5,6,6,7],    total_projected:24, trend:'rising',   confidence:'medium' },
+  { product_id:'d7',  name:'Linen Maxi Skirt',          category:'bottoms',     price:175, base_weekly:5.9,  slope:0.2,  projected_4w:[6,6,7,6],    total_projected:25, trend:'stable',   confidence:'medium' },
+  { product_id:'d9',  name:'Oversized Linen Blazer',    category:'outerwear',   price:420, base_weekly:5.4,  slope:-0.6, projected_4w:[5,4,4,3],    total_projected:16, trend:'declining', confidence:'high'   },
+  { product_id:'d6',  name:'Tailored Bermuda Short',    category:'bottoms',     price:135, base_weekly:4.1,  slope:-0.2, projected_4w:[4,4,3,4],    total_projected:15, trend:'stable',   confidence:'medium' },
+  { product_id:'d10', name:'Cotton Utility Jacket',     category:'outerwear',   price:355, base_weekly:2.8,  slope:-0.9, projected_4w:[2,2,1,1],    total_projected:6,  trend:'declining', confidence:'medium' },
+  { product_id:'d4',  name:'Knit Cardigan',             category:'tops',        price:165, base_weekly:1.9,  slope:-0.4, projected_4w:[2,1,1,1],    total_projected:5,  trend:'declining', confidence:'low'    },
+  { product_id:'d8',  name:'Cargo Trousers',            category:'bottoms',     price:155, base_weekly:0.8,  slope:0.3,  projected_4w:[1,1,1,2],    total_projected:5,  trend:'stable',   confidence:'low'    },
+];
+
+// ══════════════════════════════════════════
+// SECTION 1: SELL-THROUGH PER PRODUCT
+// ══════════════════════════════════════════
+function renderSellThrough(products) {
+  const el = document.getElementById('sell-through-list');
+  const ranked = products
+    .map(p => {
+      const sold  = parseInt(p.sold)  || 0;
+      const stock = parseInt(p.stock) || 0;
+      const rate  = sold + stock > 0 ? Math.round(sold / (sold + stock) * 100) : 0;
+      return { ...p, sold, stock, rate };
+    })
+    .sort((a, b) => b.rate - a.rate);
+
+  if (!ranked.length) {
+    el.innerHTML = `<div style="padding:30px 0;text-align:center;color:var(--text-dim);font-size:11px">No product data available.</div>`;
+    return;
+  }
+
+  el.innerHTML = ranked.map(p => {
+    const color = p.rate >= 70 ? '#8fb8a0' : p.rate >= 40 ? GOLD : 'var(--red,#e07060)';
+    const label = p.rate >= 70 ? 'healthy' : p.rate >= 40 ? 'moderate' : 'slow';
+    return `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div>
+          <span style="font-size:10px;color:var(--text);font-family:'DM Mono',monospace">${p.name}</span>
+          <span style="font-size:9px;color:var(--text-dim);margin-left:8px;text-transform:capitalize">${p.category || ''}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-size:9px;color:${color};letter-spacing:0.06em">${label}</span>
+          <span style="font-size:11px;color:${color};font-family:'DM Mono',monospace;font-weight:600;min-width:36px;text-align:right">${p.rate}%</span>
+        </div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-inner" style="width:${p.rate}%;background:${color}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px">
+        <span style="font-size:8px;color:var(--text-dim)">${p.sold} sold · ${p.stock} remaining</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// SECTION 1b: RESTOCK PRIORITY
+// ══════════════════════════════════════════
+function renderRestockList(products) {
+  const el = document.getElementById('restock-list');
+  const urgent = products
+    .map(p => {
+      const stock   = parseInt(p.stock) || 0;
+      const sold    = parseInt(p.sold)  || 0;
+      const vel     = sold / 30;
+      const weeks   = vel > 0 ? (stock / (vel * 7)).toFixed(1) : '∞';
+      const urgency = stock === 0 ? 'out' : stock < 10 ? 'critical' : stock < 25 ? 'low' : 'ok';
+      return { ...p, stock, weeks, urgency };
+    })
+    .filter(p => p.urgency !== 'ok')
+    .sort((a, b) => a.stock - b.stock);
+
+  if (!urgent.length) {
+    el.innerHTML = `<div style="padding:30px 0;text-align:center;color:var(--text-dim);font-size:11px">All products have healthy stock levels ✓</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 44px 54px;gap:6px;margin-bottom:8px;padding:0 4px">
+      <span style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Product</span>
+      <span style="font-size:9px;color:var(--text-dim);text-align:center">Stock</span>
+      <span style="font-size:9px;color:var(--text-dim);text-align:right">Wks Left</span>
+    </div>
+    ${urgent.map(p => {
+      const dot = p.urgency === 'out' ? 'var(--red)' : p.urgency === 'critical' ? '#f07060' : GOLD;
+      return `
+      <div style="display:grid;grid-template-columns:1fr 44px 54px;gap:6px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="risk-dot" style="background:${dot}"></div>
+          <div>
+            <div style="font-size:10px;color:var(--text);font-family:'DM Mono',monospace">${p.name}</div>
+            <div style="font-size:8px;color:var(--text-dim);text-transform:capitalize">${p.category || ''}</div>
+          </div>
+        </div>
+        <span style="font-size:10px;color:${dot};font-family:'DM Mono',monospace;text-align:center">${p.stock}</span>
+        <span style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;text-align:right">${p.weeks}</span>
+      </div>`;
+    }).join('')}`;
+}
+
+// ══════════════════════════════════════════
+// SECTION 2: COLOR PERFORMANCE PER PRODUCT
+// ══════════════════════════════════════════
+function renderColorPerformance(products, colorData) {
+  const el = document.getElementById('color-performance-grid');
+
+  // Group color data by product
+  const byProduct = {};
+  colorData.forEach(r => {
+    (byProduct[r.product_id] ??= []).push(r);
+  });
+
+  // Also group variant stock for products with no sales yet
+  const variantsByProduct = {};
+  products.forEach(p => {
+    (p.variants || []).forEach(v => {
+      (variantsByProduct[p.id] ??= {})[`${v.color}|${v.channel}`] =
+        (variantsByProduct[p.id]?.[`${v.color}|${v.channel}`] || 0) + (parseInt(v.stock) || 0);
+    });
+  });
+
+  // Only show products that have either sales or variants
+  const relevant = products.filter(p => byProduct[p.id]?.length || Object.keys(variantsByProduct[p.id] || {}).length);
+
+  if (!relevant.length) {
+    el.innerHTML = `<div style="font-size:10px;color:var(--text-dim);padding:20px 0">No color variant data available yet.</div>`;
+    return;
+  }
+
+  el.innerHTML = relevant.map(p => {
+    const colors = byProduct[p.id] || [];
+    const maxSold = Math.max(...colors.map(c => c.sold || 0), 1);
+
+    // Build rows: combine sold data with remaining variant stock
+    const colorKeys = new Set([
+      ...colors.map(c => `${c.color}|${c.channel}`),
+      ...Object.keys(variantsByProduct[p.id] || {}),
+    ]);
+
+    const rows = [...colorKeys].map(key => {
+      const [color, channel] = key.split('|');
+      const sold  = colors.find(c => c.color === color && c.channel === channel)?.sold || 0;
+      const stock = variantsByProduct[p.id]?.[key] || 0;
+      const rate  = sold + stock > 0 ? Math.round(sold / (sold + stock) * 100) : 0;
+      return { color, channel, sold, stock, rate };
+    }).sort((a, b) => b.sold - a.sold);
+
+    return `
+    <div class="prod-color-block">
+      <div class="prod-header">
+        <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-bright);font-family:'DM Mono',monospace">${p.name}</span>
+        <span style="font-size:9px;color:var(--text-dim);text-transform:capitalize;background:var(--surface);padding:2px 7px;border-radius:2px">${p.category || ''}</span>
+      </div>
+      ${rows.map(r => {
+        const color = r.rate >= 70 ? '#8fb8a0' : r.rate >= 40 ? GOLD : 'var(--red,#e07060)';
+        const pct   = maxSold > 0 ? Math.round(r.sold / maxSold * 100) : 0;
+        const chLabel = r.channel === 'wholesale' ? 'WS' : 'SN';
+        return `
+        <div style="display:grid;grid-template-columns:90px 14px 1fr 54px 36px;align-items:center;gap:6px;margin-bottom:7px">
+          <span style="font-size:9px;color:var(--text);text-transform:uppercase;letter-spacing:0.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.color}">${r.color}</span>
+          <span style="font-size:8px;color:var(--text-dim);background:var(--surface);padding:1px 3px;border-radius:2px;text-align:center">${chLabel}</span>
+          <div class="bar-wrap"><div class="bar-inner" style="width:${pct}%;background:${color}"></div></div>
+          <span style="font-size:9px;font-family:'DM Mono',monospace;color:var(--text-dim);text-align:right">${r.sold} sold</span>
+          <span style="font-size:9px;font-family:'DM Mono',monospace;color:${color};text-align:right">${r.rate}%</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// SECTION 3: ML DEMAND FORECAST TABLE
+// ══════════════════════════════════════════
+function renderForecast(forecastData) {
+  const el = document.getElementById('forecast-table');
+  if (!forecastData.length) {
+    el.innerHTML = `<div style="padding:30px 0;text-align:center;color:var(--text-dim);font-size:11px">No sales data available for projection.</div>`;
+    return;
+  }
+
+  const maxProj = Math.max(...forecastData.map(f => f.total_projected), 1);
+
+  el.innerHTML = forecastData.map(f => {
+    const trendIcon  = f.trend === 'rising' ? '▲' : f.trend === 'declining' ? '▼' : '▶';
+    const trendClass = `trend-${f.trend}`;
+    const confClass  = `conf-${f.confidence}`;
+    const confChar   = f.confidence === 'high' ? 'H' : f.confidence === 'medium' ? 'M' : 'L';
+    const barColor   = f.trend === 'rising' ? '#8fb8a0' : f.trend === 'declining' ? 'var(--red,#e07060)' : GOLD;
+    const maxW       = Math.max(...f.projected_4w, 1);
+
+    const projBars = f.projected_4w.map((v, i) => {
+      const h = maxW > 0 ? Math.round(v / maxW * 14) : 2;
+      const wLabel = ['W1','W2','W3','W4'][i];
+      return `<span title="${wLabel}: ${v} units" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;margin-right:6px">
+        <span style="font-size:8px;font-family:'DM Mono',monospace;color:${barColor}">${v}</span>
+        <span class="mini-proj-bar" style="background:${barColor};opacity:0.7;height:${Math.max(h,3)}px;width:22px"></span>
+        <span style="font-size:7px;color:var(--text-dim)">${wLabel}</span>
+      </span>`;
+    }).join('');
+
+    return `
+    <div class="fc-row" style="display:grid;grid-template-columns:1.8fr 60px 60px 1fr 36px;gap:8px;align-items:center;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,0.03)">
+      <div>
+        <div style="font-size:11px;color:var(--text);font-family:'DM Mono',monospace">${f.name}</div>
+        <div style="font-size:8px;color:var(--text-dim);text-transform:capitalize;margin-top:2px">${f.category} · $${f.price}</div>
+      </div>
+      <div style="text-align:center">
+        <span class="${trendClass}" style="font-size:13px">${trendIcon}</span>
+        <div style="font-size:8px;color:var(--text-dim);margin-top:2px;text-transform:capitalize">${f.trend}</div>
+      </div>
+      <div style="text-align:right">
+        <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text)">${f.base_weekly}</span>
+        <div style="font-size:8px;color:var(--text-dim);margin-top:2px">units/wk</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:0">${projBars}</div>
+      <div style="text-align:center"><span class="conf-badge ${confClass}">${confChar}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// LOAD ALL ANALYTICS DATA
+// ══════════════════════════════════════════
+function setDemoBadge(isDemo) {
+  const badge = document.getElementById('demo-badge');
+  if (badge) badge.style.display = isDemo ? 'flex' : 'none';
+}
+
+async function loadAnalytics() {
+  try {
+    const [productsRes, colorRes, forecastRes] = await Promise.all([
+      fetch('/api/products'),
+      fetch('/api/analytics/color-breakdown'),
+      fetch('/api/analytics/forecast'),
+    ]);
+    let products     = await productsRes.json();
+    let colorData    = await colorRes.json();
+    let forecastData = await forecastRes.json();
+
+    // If no meaningful sales data, supplement with demo data
+    const hasRealSales = products.some(p => (parseInt(p.sold) || 0) > 0);
+    const isDemo = !hasRealSales;
+
+    if (!hasRealSales) {
+      products     = DUMMY_PRODUCTS;
+      colorData    = DUMMY_COLOR_DATA;
+      forecastData = DUMMY_FORECAST;
+    } else {
+      // Real products exist but maybe no color breakdown or forecast yet
+      if (!colorData.length)                        colorData    = DUMMY_COLOR_DATA;
+      if (forecastData.every(f => f.total_projected === 0)) forecastData = DUMMY_FORECAST;
+    }
+
+    setDemoBadge(isDemo);
+    renderSellThrough(products);
+    renderRestockList(products);
+    renderColorPerformance(products, colorData);
+    renderForecast(forecastData);
+  } catch (err) {
+    console.error('Analytics load error:', err);
+    // On API error, show demo data so the page is never blank
+    setDemoBadge(true);
+    renderSellThrough(DUMMY_PRODUCTS);
+    renderRestockList(DUMMY_PRODUCTS);
+    renderColorPerformance(DUMMY_PRODUCTS, DUMMY_COLOR_DATA);
+    renderForecast(DUMMY_FORECAST);
+  }
+}
+
+// ── FULL REPORT ──
+function generateFullReport() {
+  const today   = new Date();
+  const dateStr = today.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const tsStr   = today.toLocaleString('en-US', { hour:'2-digit', minute:'2-digit', hour12:true });
+
+  const html = `<!DOCTYPE html><html>
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics Report — haniqa</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@300;400&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Mono',monospace;color:#111;background:#fff;padding:40px 48px;font-size:11px}
+    .brand{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;letter-spacing:0.04em}
+    .brand span{color:#d63384}
+    .subtitle{font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:#666;margin-top:3px}
+    .report-date{font-size:10px;color:#888;margin-top:6px}
+    hr{border:none;border-top:1.5px solid #111;margin:20px 0 28px}
+    .placeholder{text-align:center;padding:100px 0;color:#ccc}
+    .placeholder-icon{font-size:72px;margin-bottom:24px;opacity:0.5}
+    .placeholder-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:#999;margin-bottom:10px}
+    .placeholder-sub{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#bbb}
+    .footer{margin-top:60px;padding-top:14px;border-top:1px solid #ddd;font-size:9px;color:#aaa;display:flex;justify-content:space-between}
+    @media print{body{padding:24px 32px}}
+  </style>
+</head>
+<body>
+  <div class="brand">han<span>iq</span>a</div>
+  <div class="subtitle">Full Analytics Report</div>
+  <div class="report-date">${dateStr}</div>
+  <hr>
+  <div class="placeholder">
+    <div class="placeholder-icon">📊</div>
+    <div class="placeholder-title">Analytics Report</div>
+    <div class="placeholder-sub">Detailed analytics export — coming soon</div>
+  </div>
+  <div class="footer">
+    <span>haniqa · Retail Management System</span>
+    <span>Generated ${tsStr}</span>
+  </div>
+  <script>window.onload=()=>window.print()<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=960,height=720');
+  w.document.write(html);
+  w.document.close();
+}
+
+// ── INIT ──
+window.addEventListener('load', async () => {
+  await checkAuth();
+  loadTheme();
+  await loadAnalytics();
+
+  const hash = window.location.hash.replace('#', '');
+  if (hash === 'ai-chat') {
+    showPage('ai-chat', document.getElementById('nav-chat'));
+  }
+});
+</script>
+</body>
+</html>

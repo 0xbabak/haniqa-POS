@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>haniqa — Catalogue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="logo-block">
+    <div class="logo">han<span class="pink-text">iq</span>a</div>
+    <div class="logo-sub" style="color:var(--pink)">Retail Management System</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Point of Sale</div>
+    <div class="nav-item" onclick="window.location='pos.html'">
+      <span class="nav-icon">◉</span> POS Terminal
+    </div>
+    <div class="nav-item" onclick="window.location='pos.html#cashier'">
+      <span class="nav-icon">◪</span> Cash Register
+    </div>
+    <div class="nav-item" onclick="window.location='pos.html#sales'">
+      <span class="nav-icon">◈</span> Sales
+    </div>
+
+    <div class="nav-divider"></div>
+    <div class="nav-label">Insights</div>
+    <div class="nav-item" onclick="window.location='dashboard.html'">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="window.location='ai.html'">
+      <span class="nav-icon">◻</span> Analytics
+    </div>
+    <div class="nav-item" onclick="window.location='ai.html#ai-chat'">
+      <span class="nav-icon">◎</span> Chat with AI
+    </div>
+
+    <div class="nav-divider"></div>
+    <div class="nav-label">Catalogue</div>
+    <div class="nav-item active" onclick="showPage('catalogue', this)">
+      <span class="nav-icon">◫</span> All Products
+    </div>
+    <div class="nav-item" onclick="showPage('add', this)">
+      <span class="nav-icon">+</span> Add Product
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span id="theme-icon">◐</span> <span id="theme-text">Light Mode</span>
+    </button>
+    <button class="theme-toggle" onclick="logout()" style="color: var(--red); margin-top: 6px">⇥ Sign Out</button>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Product Catalogue</div>
+    <div class="topbar-filter">
+      <input type="text" class="search-box" placeholder="Search products…" id="searchInput" oninput="filterCatalogue()">
+      <button class="filter-btn active" onclick="filterCategory('all', this)">All</button>
+      <button class="filter-btn" onclick="filterCategory('tops', this)">Tops</button>
+      <button class="filter-btn" onclick="filterCategory('bottoms', this)">Bottoms</button>
+      <button class="filter-btn" onclick="filterCategory('outerwear', this)">Outerwear</button>
+      <button class="filter-btn" onclick="filterCategory('accessories', this)">Accessories</button>
+    </div>
+  </div>
+
+  <!-- ════ CATALOGUE ════ -->
+  <div class="page active" id="page-catalogue">
+    <div class="section-head">
+      <div class="section-title">Product Catalogue</div>
+      <div class="section-line"></div>
+      <div class="section-meta" id="cat-count">16 items</div>
+    </div>
+
+    <div class="cat-controls" style="margin-bottom: 24px;">
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span style="font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;">Season:</span>
+        <button class="filter-btn active" onclick="filterSeason('all', this)">All</button>
+        <button class="filter-btn" onclick="filterSeason('SS 2026', this)">SS 2026</button>
+        <button class="filter-btn" onclick="filterSeason('FW 2025', this)">FW 2025</button>
+        <button class="filter-btn" onclick="filterSeason('SS 2025', this)">SS 2025</button>
+      </div>
+    </div>
+
+    <div class="cat-grid" id="catalogue-grid"></div>
+  </div>
+
+  <!-- ════ ADD PRODUCT ════ -->
+  <div class="page" id="page-add">
+    <div class="section-head">
+      <div class="section-title">Add New Product</div>
+      <div class="section-line"></div>
+    </div>
+
+    <div style="max-width: 760px">
+      <div style="background:var(--deep); border:1px solid var(--border); padding:32px">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Product Name</label>
+            <input type="text" class="form-input" id="f-name" placeholder="e.g. Linen Blazer">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reference Code</label>
+            <input type="text" class="form-input" id="f-ref" placeholder="e.g. ATL-BLZ-001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="f-cat">
+              <option value="tops">Tops</option>
+              <option value="bottoms">Bottoms</option>
+              <option value="outerwear">Outerwear</option>
+              <option value="accessories">Accessories</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Selling Price ($)</label>
+            <input type="number" class="form-input" id="f-price" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wholesale Price ($)</label>
+            <input type="number" class="form-input" id="f-wholesale" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Season</label>
+            <input type="text" class="form-input" id="f-season" placeholder="e.g. SS 2026">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Description / Notes</label>
+            <textarea class="form-input" id="f-desc" rows="3" placeholder="Fabric, cut, season notes…" style="resize:vertical; font-family:'DM Mono',monospace"></textarea>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Color Variants & Stock</label>
+            <div id="ap-wholesale-section"></div>
+            <div id="ap-single-section" style="margin-top:16px"></div>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Product Photo</label>
+            <div id="add-image-area" onclick="document.getElementById('f-image').click()" style="border:1px dashed var(--border); border-radius:4px; height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; position:relative; overflow:hidden; transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div id="add-image-placeholder" style="display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none">
+                <div style="font-size:28px; opacity:0.3">📷</div>
+                <div style="font-size:10px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase">Click to upload photo</div>
+                <div style="font-size:9px; color:var(--text-dim)">JPG, PNG, WEBP — max 5MB</div>
+              </div>
+              <img id="add-image-preview" style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover">
+            </div>
+            <input type="file" id="f-image" accept="image/*" style="display:none" onchange="handleAddImagePreview(this)">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="addProduct()">Add to Catalogue</button>
+          <button class="btn-secondary" onclick="clearForm()">Clear</button>
+        </div>
+        <div id="form-msg" style="margin-top:14px; font-size:11px; color:var(--accent); display:none">
+          ✓ Product added to catalogue
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── EDIT PRODUCT MODAL ── -->
+<div class="modal-overlay" id="edit-product-modal" onclick="if(event.target===this) closeEditProductModal()">
+  <div class="modal" style="width:620px; max-height:90vh; overflow-y:auto">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:9px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px">Edit Product</div>
+        <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)" id="ep-title">Edit Product</div>
+      </div>
+      <button class="modal-close" onclick="closeEditProductModal()">✕</button>
+    </div>
+    <div style="padding:28px 32px">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Product Name</label>
+          <input type="text" class="form-input" id="ep-name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reference Code</label>
+          <input type="text" class="form-input" id="ep-ref">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="ep-cat">
+            <option value="tops">Tops</option>
+            <option value="bottoms">Bottoms</option>
+            <option value="outerwear">Outerwear</option>
+            <option value="accessories">Accessories</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Selling Price ($)</label>
+          <input type="number" class="form-input" id="ep-price">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wholesale Price ($)</label>
+          <input type="number" class="form-input" id="ep-wholesale">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Season</label>
+          <input type="text" class="form-input" id="ep-season" placeholder="e.g. SS 2026">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Description / Notes</label>
+          <textarea class="form-input" id="ep-desc" rows="3" style="resize:vertical; font-family:'DM Mono',monospace"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Color Variants & Stock</label>
+          <div id="ep-wholesale-section"></div>
+          <div id="ep-single-section" style="margin-top:16px"></div>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Product Photo</label>
+          <div onclick="document.getElementById('ep-image-input').click()" style="border:1px dashed var(--border); border-radius:4px; height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; position:relative; overflow:hidden; transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div id="ep-image-placeholder" style="display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none">
+              <div style="font-size:28px; opacity:0.3">📷</div>
+              <div style="font-size:10px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase">Click to change photo</div>
+            </div>
+            <img id="ep-image-preview" style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover">
+          </div>
+          <input type="file" id="ep-image-input" accept="image/*" style="display:none" onchange="handleEditImagePreview(this)">
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:8px">
+        <button class="btn-primary" onclick="saveEditProduct()">Save Changes</button>
+        <button class="btn-secondary" onclick="closeEditProductModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIRM DIALOG ── -->
+<div class="modal-overlay" id="confirm-overlay" onclick="if(event.target===this) closeConfirm()" style="z-index:1100">
+  <div class="modal" style="width:420px; max-height:unset">
+    <div class="modal-header" style="padding:24px 28px">
+      <div>
+        <div style="font-size:9px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px" id="confirm-eyebrow">Confirm</div>
+        <div style="font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:300; color:var(--text-bright)" id="confirm-title"></div>
+      </div>
+      <button class="modal-close" onclick="closeConfirm()">✕</button>
+    </div>
+    <div style="padding:20px 28px 28px">
+      <p id="confirm-msg" style="font-size:12px; color:var(--text-dim); margin:0 0 24px; line-height:1.6"></p>
+      <div class="form-actions" style="margin-top:0">
+        <button class="btn-primary" id="confirm-ok" style="flex:1">Confirm</button>
+        <button class="btn-secondary" onclick="closeConfirm()" style="flex:1">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PRODUCT DETAIL MODAL ── -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:9px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px" id="modal-cat"></div>
+        <div style="font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:300; color:var(--text-bright)" id="modal-name"></div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:2px" id="modal-ref"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-img" id="modal-img"></div>
+      <div class="modal-details" id="modal-details"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIRM DIALOG ──
+let _confirmCallback = null;
+
+function showConfirm(eyebrow, title, message, onConfirm, okLabel = 'Confirm', danger = false) {
+  document.getElementById('confirm-eyebrow').textContent = eyebrow;
+  document.getElementById('confirm-title').textContent   = title;
+  document.getElementById('confirm-msg').textContent     = message;
+  const okBtn = document.getElementById('confirm-ok');
+  okBtn.textContent = okLabel;
+  okBtn.style.background = danger
+    ? 'linear-gradient(135deg,#8b2222,#c0392b)'
+    : 'linear-gradient(135deg,var(--pink-dim),var(--pink))';
+  _confirmCallback = onConfirm;
+  okBtn.onclick = () => { const cb = _confirmCallback; closeConfirm(); cb && cb(); };
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  _confirmCallback = null;
+}
+
+// ── AUTH ──
+async function checkAuth() {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) { window.location.href = '/login.html'; throw new Error('unauth'); }
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  sessionStorage.clear();
+  window.location.href = '/login.html';
+}
+
+// ── THEME ──
+function toggleTheme() {
+  document.body.classList.toggle('light-theme');
+  const isLight = document.body.classList.contains('light-theme');
+  document.getElementById('theme-icon').textContent = isLight ? '◑' : '◐';
+  document.getElementById('theme-text').textContent = isLight ? 'Dark Mode' : 'Light Mode';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+function loadTheme() {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-theme');
+    document.getElementById('theme-icon').textContent = '◑';
+    document.getElementById('theme-text').textContent = 'Dark Mode';
+  }
+}
+
+// ── DATA ──
+let products = [];
+
+async function loadProducts() {
+  const res = await fetch('/api/products');
+  const data = await res.json();
+  products = data.map(p => ({
+    ...p,
+    cat: p.category,
+    price: parseFloat(p.price),
+    wholesalePrice: parseFloat(p.wholesale_price),
+    stock: parseInt(p.stock),
+    sold: parseInt(p.sold),
+  }));
+  filterCatalogue();
+}
+
+// ── NAV ──
+function showPage(id, el) {
+  const target = document.getElementById('page-' + id);
+  if (!target) return;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles = { catalogue: 'Product Catalogue', add: 'Add New Product' };
+  document.getElementById('topbar-title').textContent = titles[id] || '';
+  if (id === 'catalogue') filterCatalogue();
+}
+
+// ── CATALOGUE ──
+const patterns = ['pattern-1','pattern-2','pattern-3','pattern-4','pattern-5','pattern-6'];
+const colors   = ['#3d2a1e','#1e3d2a','#1e2a3d','#3d3d1e','#2a1e3d','#3d1e2a'];
+let currentCat = 'all';
+let currentSeason = 'all';
+
+function renderCatalogue(items) {
+  const grid = document.getElementById('catalogue-grid');
+  grid.innerHTML = items.map((p, i) => `
+    <div class="product-card" data-cat="${p.cat}" style="display:flex; flex-direction:column">
+      <div onclick="openModal(${p.id})" style="cursor:pointer; flex:1">
+        <div class="product-img ${p.image_url ? '' : patterns[i % 6]}" style="${p.image_url ? 'background:#111' : ''}">
+          ${p.image_url
+            ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
+            : `<div class="product-color-chip" style="background:${colors[i%6]}"></div>
+               <svg width="60" height="80" viewBox="0 0 60 80" fill="none">
+                 <path d="M20 5 L5 20 L15 20 L15 70 L45 70 L45 20 L55 20 L40 5 Z" stroke="#888" stroke-width="1" fill="none"/>
+               </svg>`}
+          <div class="product-overlay"><span>View Details</span></div>
+        </div>
+        <div class="product-meta">
+          <div class="product-category">${p.cat}</div>
+          <div class="product-name">${p.name}</div>
+          <div class="product-ref">${p.ref}</div>
+          <div class="product-stats">
+            <div class="product-price">$${p.price}</div>
+            <div class="product-sold">
+              <strong>${p.sold}</strong> sold<br>
+              <span>${p.stock} in stock</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; padding:8px 12px 12px; border-top:1px solid var(--border)">
+        <button onclick="event.stopPropagation(); openEditProductModal(${p.id})" style="flex:1; padding:6px; background:none; border:1px solid var(--border); color:var(--text); font-size:10px; font-family:'DM Mono',monospace; letter-spacing:0.08em; cursor:pointer; border-radius:2px; transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">✎ EDIT</button>
+        <button onclick="event.stopPropagation(); deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')" style="padding:6px 10px; background:none; border:1px solid var(--border); color:var(--text-dim); font-size:10px; font-family:'DM Mono',monospace; cursor:pointer; border-radius:2px; transition:all 0.2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">✕</button>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('cat-count').textContent = items.length + ' items';
+}
+
+function filterCategory(cat, el) {
+  currentCat = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  filterCatalogue();
+}
+
+function filterSeason(season, el) {
+  currentSeason = season;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  filterCatalogue();
+}
+
+function filterCatalogue() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = products;
+  if (currentCat !== 'all') filtered = filtered.filter(p => p.cat === currentCat);
+  if (currentSeason !== 'all') filtered = filtered.filter(p => p.season === currentSeason);
+  if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q));
+  renderCatalogue(filtered);
+}
+
+// ── VARIANT STOCK BREAKDOWN ──────────────────────────────────────────────────
+function buildVariantPieChart(variants) {
+  if (!variants || variants.length === 0) {
+    return `<div style="font-size:10px;color:var(--text-dim);padding:6px 0">No variants configured — edit the product to add colors & stock.</div>`;
+  }
+
+  function channelBlock(channel, label) {
+    const items = variants.filter(v => v.channel === channel);
+    if (!items.length) return '';
+    const byColor = {};
+    items.forEach(v => {
+      if (!byColor[v.color]) byColor[v.color] = 0;
+      byColor[v.color] += parseInt(v.stock) || 0;
+    });
+    const total = Object.values(byColor).reduce((a, b) => a + b, 0);
+    const rows  = Object.entries(byColor).map(([color, qty]) =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:10px;color:var(--text);font-family:'DM Mono',monospace">${color}</span>
+        <span style="font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace">${qty}</span>
+      </div>`).join('');
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">${label}</span>
+        <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace">${total} units</span>
+      </div>
+      ${rows}
+    </div>`;
+  }
+
+  return `<div style="border:1px solid var(--border);border-radius:4px;padding:10px 12px">
+    ${channelBlock('wholesale', 'Wholesale')}
+    ${channelBlock('single',    'Single / Retail')}
+  </div>`;
+}
+
+// ── MODAL ──
+function openModal(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('modal-cat').textContent = p.cat.toUpperCase();
+  document.getElementById('modal-name').textContent = p.name;
+  document.getElementById('modal-ref').textContent = p.ref;
+  const pi = products.indexOf(p);
+  const imgEl = document.getElementById('modal-img');
+  if (p.image_url) {
+    imgEl.className = 'modal-img';
+    imgEl.style.background = '#111';
+    imgEl.innerHTML = `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:2px">`;
+  } else {
+    imgEl.className = 'modal-img ' + patterns[pi % 6];
+    imgEl.style.background = '';
+    imgEl.innerHTML = `<div class="product-color-chip" style="background:${colors[pi%6]}"></div>
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.1">
+        <svg width="80" height="110" viewBox="0 0 60 80" fill="none">
+          <path d="M20 5 L5 20 L15 20 L15 70 L45 70 L45 20 L55 20 L40 5 Z" stroke="#888" stroke-width="1" fill="none"/>
+        </svg>
+      </div>`;
+  }
+  const totalStock = p.stock;
+  const sellThrough = p.sold + totalStock > 0 ? Math.round(p.sold / (p.sold + totalStock) * 100) : 0;
+  document.getElementById('modal-details').innerHTML = `
+    <div class="detail-row"><span class="detail-label">Price</span><span class="detail-value" style="font-family:'Cormorant Garamond',serif; font-size:20px">$${p.price}</span></div>
+    <div class="detail-row"><span class="detail-label">Units Sold</span><span class="detail-value" style="color:var(--accent)">${p.sold}</span></div>
+    <div class="detail-row"><span class="detail-label">Total Stock</span><span class="detail-value" style="${totalStock < 20 ? 'color:var(--red)' : ''}">${totalStock}</span></div>
+    <div class="detail-row"><span class="detail-label">Revenue</span><span class="detail-value">$${(p.price * p.sold).toLocaleString()}</span></div>
+    <div class="detail-row"><span class="detail-label">Trend</span><span class="detail-value" style="color:${p.trend.startsWith('+') ? 'var(--accent)' : 'var(--red)'}">${p.trend}</span></div>
+    <div class="detail-row"><span class="detail-label">Status</span><span class="badge ${p.status}" style="font-size:10px">${p.status.toUpperCase()}</span></div>
+    <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value" style="text-transform:capitalize">${p.cat}</span></div>
+    <div style="margin-top:16px"><div class="kpi-label" style="margin-bottom:8px">Sell-through Rate</div>
+      <div style="height:6px; background:var(--muted); border-radius:3px; overflow:hidden">
+        <div style="height:100%; width:${sellThrough}%; background:linear-gradient(90deg,var(--pink-dim),var(--pink)); border-radius:3px"></div>
+      </div>
+      <div style="font-size:10px; color:var(--text-dim); margin-top:6px">${sellThrough}% sold through</div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="kpi-label" style="margin-bottom:10px">Stock by Variant</div>
+      ${buildVariantPieChart(p.variants || [])}
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+}
+
+// ── ADD PRODUCT ──
+function handleAddImagePreview(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('add-image-preview');
+  const placeholder = document.getElementById('add-image-placeholder');
+  const reader = new FileReader();
+  reader.onload = e => {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── VARIANT SYSTEM ────────────────────────────────────────────────────────────
+const CHANNEL_SIZES = {
+  wholesale: ['S', 'L'],
+  single:    ['36', '38', '40', '42', '44', '46', '48', '50'],
+};
+
+function variantRowHTML(channel, color = '', stocks = {}) {
+  const sizes    = CHANNEL_SIZES[channel];
+  const colWidth = channel === 'wholesale' ? '58px' : '42px';
+  const gap      = channel === 'wholesale' ? '6px'  : '4px';
+  const cols     = `140px ${sizes.map(() => colWidth).join(' ')} 30px`;
+  const inputs   = sizes.map(s => `
+    <input type="number" class="form-input" min="0" value="${stocks[s] || 0}"
+      data-vfield="size-stock" data-size="${s}"
+      style="text-align:center; font-size:11px; padding:6px 2px">`).join('');
+  return `<div class="variant-row" style="display:grid; grid-template-columns:${cols}; gap:${gap}; align-items:center">
+    <input type="text" class="form-input" placeholder="e.g. NAVY BLUE" value="${color}"
+      data-vfield="color" style="font-size:11px; padding:7px 8px; text-transform:uppercase">
+    ${inputs}
+    <button type="button" onclick="this.closest('.variant-row').remove()"
+      style="width:28px; height:28px; background:none; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; font-size:15px; line-height:1"
+      onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">×</button>
+  </div>`;
+}
+
+function variantSectionHTML(channel, containerId, addFn) {
+  const sizes    = CHANNEL_SIZES[channel];
+  const colWidth = channel === 'wholesale' ? '58px' : '42px';
+  const gap      = channel === 'wholesale' ? '6px'  : '4px';
+  const cols     = `140px ${sizes.map(() => colWidth).join(' ')} 30px`;
+  const label    = channel === 'wholesale' ? 'Wholesale — sizes: S / L' : 'Single / Retail — EU sizes: 36–50';
+  return `<div>
+    <div style="font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--pink-dim); padding-bottom:8px; border-bottom:1px solid var(--border); margin-bottom:8px">${label}</div>
+    <div style="display:grid; grid-template-columns:${cols}; gap:${gap}; margin-bottom:5px; padding:0 1px">
+      <span style="font-size:9px; color:var(--text-dim)">Color</span>
+      ${sizes.map(s => `<span style="font-size:9px; color:var(--text-dim); text-align:center">${s}</span>`).join('')}
+      <span></span>
+    </div>
+    <div id="${containerId}" style="display:flex; flex-direction:column; gap:5px"></div>
+    <button type="button" onclick="${addFn}()"
+      style="margin-top:7px; padding:5px 14px; background:none; border:1px dashed var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.08em; cursor:pointer; border-radius:2px; width:100%; text-align:center"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">+ Add Color</button>
+  </div>`;
+}
+
+function getVariantRowsFromContainer(containerId, channel) {
+  const variants = [];
+  document.querySelectorAll(`#${containerId} .variant-row`).forEach(row => {
+    const color = row.querySelector('[data-vfield="color"]').value.trim().toUpperCase();
+    if (!color) return;
+    row.querySelectorAll('[data-vfield="size-stock"]').forEach(input => {
+      variants.push({ color, size: input.dataset.size, channel, stock: parseInt(input.value) || 0 });
+    });
+  });
+  return variants;
+}
+
+function addEpRow(channel) {
+  const id = channel === 'wholesale' ? 'ep-wholesale-container' : 'ep-single-container';
+  document.getElementById(id).insertAdjacentHTML('beforeend', variantRowHTML(channel));
+}
+
+function addApRow(channel) {
+  const id = channel === 'wholesale' ? 'ap-wholesale-container' : 'ap-single-container';
+  document.getElementById(id).insertAdjacentHTML('beforeend', variantRowHTML(channel));
+}
+
+// ── ADD PRODUCT ──────────────────────────────────────────────────────────────
+function initApSections() {
+  document.getElementById('ap-wholesale-section').innerHTML = variantSectionHTML('wholesale', 'ap-wholesale-container', "addApRow('wholesale')");
+  document.getElementById('ap-single-section').innerHTML   = variantSectionHTML('single',    'ap-single-container',    "addApRow('single')");
+}
+
+async function addProduct() {
+  const name      = document.getElementById('f-name').value.trim();
+  const ref       = document.getElementById('f-ref').value.trim();
+  const cat       = document.getElementById('f-cat').value;
+  const price     = parseFloat(document.getElementById('f-price').value) || 0;
+  const wholesale = parseFloat(document.getElementById('f-wholesale').value) || null;
+  const season    = document.getElementById('f-season').value.trim() || null;
+  const desc      = document.getElementById('f-desc').value.trim();
+  if (!name || !ref) { alert('Please enter at least a name and reference code.'); return; }
+  try {
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, ref, category: cat, price, wholesale_price: wholesale, season, description: desc }),
+    });
+    if (!res.ok) { const err = await res.json(); alert(err.error || 'Failed to add product'); return; }
+    const newProduct = await res.json();
+
+    const variants = [
+      ...getVariantRowsFromContainer('ap-wholesale-container', 'wholesale'),
+      ...getVariantRowsFromContainer('ap-single-container',    'single'),
+    ];
+    if (variants.length) {
+      await fetch(`/api/products/${newProduct.id}/variants`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variants }),
+      });
+    }
+    const imageFile = document.getElementById('f-image').files[0];
+    if (imageFile) {
+      const fd = new FormData();
+      fd.append('image', imageFile);
+      await fetch(`/api/products/${newProduct.id}/image`, { method: 'POST', body: fd });
+    }
+    document.getElementById('form-msg').style.display = 'block';
+    setTimeout(() => document.getElementById('form-msg').style.display = 'none', 3000);
+    clearForm();
+    await loadProducts();
+  } catch (err) {
+    alert('Server error. Please try again.');
+  }
+}
+
+function clearForm() {
+  ['f-name','f-ref','f-price','f-wholesale','f-season','f-desc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-image').value = '';
+  document.getElementById('add-image-preview').style.display = 'none';
+  document.getElementById('add-image-placeholder').style.display = 'flex';
+  document.getElementById('ap-wholesale-container').innerHTML = '';
+  document.getElementById('ap-single-container').innerHTML   = '';
+}
+
+// ── EDIT PRODUCT ──────────────────────────────────────────────────────────────
+let editingProductId = null;
+
+function populateVariantContainer(containerId, channel, variants) {
+  const byColor = {};
+  variants.filter(v => v.channel === channel).forEach(v => {
+    if (!byColor[v.color]) byColor[v.color] = {};
+    byColor[v.color][v.size] = parseInt(v.stock) || 0;
+  });
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const entries = Object.entries(byColor);
+  if (entries.length === 0) {
+    container.insertAdjacentHTML('beforeend', variantRowHTML(channel));
+  } else {
+    entries.forEach(([color, stocks]) =>
+      container.insertAdjacentHTML('beforeend', variantRowHTML(channel, color, stocks)));
+  }
+}
+
+function openEditProductModal(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  editingProductId = id;
+  document.getElementById('ep-name').value       = p.name;
+  document.getElementById('ep-ref').value        = p.ref;
+  document.getElementById('ep-cat').value        = p.cat;
+  document.getElementById('ep-price').value      = p.price;
+  document.getElementById('ep-wholesale').value  = p.wholesale_price || '';
+  document.getElementById('ep-season').value     = p.season || '';
+  document.getElementById('ep-desc').value       = p.description || '';
+
+  // Render both channel sections
+  document.getElementById('ep-wholesale-section').innerHTML = variantSectionHTML('wholesale', 'ep-wholesale-container', "addEpRow('wholesale')");
+  document.getElementById('ep-single-section').innerHTML    = variantSectionHTML('single',    'ep-single-container',    "addEpRow('single')");
+  populateVariantContainer('ep-wholesale-container', 'wholesale', p.variants || []);
+  populateVariantContainer('ep-single-container',    'single',    p.variants || []);
+
+  const preview = document.getElementById('ep-image-preview');
+  const placeholder = document.getElementById('ep-image-placeholder');
+  if (p.image_url) {
+    preview.src = p.image_url;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    preview.style.display = 'none';
+    placeholder.style.display = 'flex';
+  }
+  document.getElementById('ep-image-input').value = '';
+  document.getElementById('edit-product-modal').classList.add('open');
+}
+
+function closeEditProductModal() {
+  document.getElementById('edit-product-modal').classList.remove('open');
+  editingProductId = null;
+}
+
+function handleEditImagePreview(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('ep-image-preview').src = e.target.result;
+    document.getElementById('ep-image-preview').style.display = 'block';
+    document.getElementById('ep-image-placeholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveEditProduct() {
+  const id          = editingProductId;
+  const name        = document.getElementById('ep-name').value.trim();
+  const ref         = document.getElementById('ep-ref').value.trim();
+  const category    = document.getElementById('ep-cat').value;
+  const price       = parseFloat(document.getElementById('ep-price').value) || 0;
+  const wholesale   = parseFloat(document.getElementById('ep-wholesale').value) || null;
+  const season      = document.getElementById('ep-season').value.trim() || null;
+  const description = document.getElementById('ep-desc').value.trim() || null;
+  if (!name || !ref) { alert('Name and reference code are required.'); return; }
+
+  showConfirm(
+    'Edit Product',
+    `Save changes to "${name}"?`,
+    'Your edits will overwrite the current product data.',
+    async () => {
+      try {
+        const res = await fetch(`/api/products/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, ref, category, price, wholesale_price: wholesale, season, description }),
+        });
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Save failed'); return; }
+
+        const variants = [
+          ...getVariantRowsFromContainer('ep-wholesale-container', 'wholesale'),
+          ...getVariantRowsFromContainer('ep-single-container',    'single'),
+        ];
+        await fetch(`/api/products/${id}/variants`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variants }),
+        });
+
+        const imageFile = document.getElementById('ep-image-input').files[0];
+        if (imageFile) {
+          const fd = new FormData();
+          fd.append('image', imageFile);
+          await fetch(`/api/products/${id}/image`, { method: 'POST', body: fd });
+        }
+        closeEditProductModal();
+        await loadProducts();
+      } catch (err) {
+        alert('Server error. Please try again.');
+      }
+    },
+    'Save Changes'
+  );
+}
+
+async function deleteProduct(id, name) {
+  showConfirm(
+    'Delete Product',
+    `Remove "${name}"?`,
+    'This action is permanent and cannot be undone. All product data will be lost.',
+    async () => {
+      try {
+        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Delete failed'); return; }
+        await loadProducts();
+      } catch (err) {
+        alert('Server error. Please try again.');
+      }
+    },
+    'Delete',
+    true
+  );
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  await checkAuth();
+  loadTheme();
+  initApSections();
+  await loadProducts();
+  if (window.location.hash === '#add') {
+    showPage('add', document.querySelector('.nav-item[onclick*="\'add\'"]'));
+  }
+});
+</script>
+</body>
+</html>
