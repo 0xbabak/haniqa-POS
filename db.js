@@ -181,7 +181,19 @@ function createTables() {
 async function seedData() {
   const userCount = db.get('SELECT COUNT(*) as c FROM users');
   if (userCount.c === 0) {
-    console.log('⚠  No users found. Create one via POST /admin/create-user.');
+    const adminUser = process.env.ADMIN_USERNAME;
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (adminUser && adminPass) {
+      const bcrypt = require('bcryptjs');
+      const hash = bcrypt.hashSync(adminPass, 10);
+      db.run(
+        'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
+        [adminUser, hash, 'admin']
+      );
+      console.log(`✓ Admin user "${adminUser}" created from environment variables.`);
+    } else {
+      console.log('⚠  No users found. Set ADMIN_USERNAME and ADMIN_PASSWORD env vars to auto-create admin.');
+    }
   }
   console.log('ℹ  Run `node seed-variants.js` to populate sample products.');
 }
