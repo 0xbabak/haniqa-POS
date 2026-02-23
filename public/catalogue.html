@@ -336,7 +336,12 @@ let products = [];
 
 async function loadProducts() {
   const res = await fetch('/api/products');
+  if (!res.ok) {
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+    throw new Error('Failed to load products: ' + res.status);
+  }
   const data = await res.json();
+  if (!Array.isArray(data)) throw new Error('Unexpected response from server');
   products = data.map(p => ({
     ...p,
     cat: p.category,

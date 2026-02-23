@@ -161,6 +161,7 @@ function createTables() {
       payment_method TEXT,
       description    TEXT,
       created_by     TEXT,
+      location       TEXT,
       created_at     TEXT DEFAULT (datetime('now'))
     );
 

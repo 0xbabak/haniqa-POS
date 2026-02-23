@@ -180,8 +180,8 @@ app.post('/api/products', requireAuth, (req, res) => {
   } catch (err) {
     if (err.message?.includes('UNIQUE'))
       return res.status(409).json({ error: 'A product with this reference code already exists' });
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('POST /api/products error:', err);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 });
 
@@ -241,7 +241,7 @@ app.post('/api/products/:id/image', requireAuth, upload.single('image'), (req, r
   const imageUrl = '/uploads/' + req.file.filename;
   const existing = db.get('SELECT image_url FROM products WHERE id = ?', [req.params.id]);
   if (existing?.image_url) {
-    const oldPath = path.join(__dirname, 'public', existing.image_url);
+    const oldPath = path.join(uploadsDir, path.basename(existing.image_url));
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
   }
   db.run("UPDATE products SET image_url = ?, updated_at = datetime('now') WHERE id = ?", [imageUrl, req.params.id]);
@@ -253,7 +253,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
     const product = db.get('SELECT * FROM products WHERE id = ?', [req.params.id]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
     if (product.image_url) {
-      const imgPath = path.join(__dirname, 'public', product.image_url);
+      const imgPath = path.join(uploadsDir, path.basename(product.image_url));
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
     db.run('DELETE FROM products WHERE id = ?', [req.params.id]);
