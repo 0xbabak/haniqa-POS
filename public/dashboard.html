@@ -11,7 +11,7 @@
   .ch-btn {
     padding: 5px 14px;
     font-family: 'DM Mono', monospace;
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     background: transparent;
@@ -29,7 +29,7 @@
     color: var(--text);
     padding: 4px 8px;
     font-family: 'DM Mono', monospace;
-    font-size: 10px;
+    font-size: 12px;
     border-radius: 2px;
     outline: none;
     color-scheme: dark;
@@ -38,7 +38,7 @@
   .apply-btn {
     padding: 4px 10px;
     font-family: 'DM Mono', monospace;
-    font-size: 10px;
+    font-size: 12px;
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-dim);
@@ -49,6 +49,8 @@
 </style>
 </head>
 <body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- ── SIDEBAR ── -->
 <nav class="sidebar">
@@ -82,12 +84,15 @@
     </div>
 
     <div class="nav-divider"></div>
-    <div class="nav-label">Catalogue</div>
+    <div class="nav-label">Products</div>
     <div class="nav-item" onclick="window.location='catalogue.html'">
       <span class="nav-icon">◫</span> All Products
     </div>
     <div class="nav-item" onclick="window.location='catalogue.html#add'">
       <span class="nav-icon">+</span> Add Product
+    </div>
+    <div class="nav-item" onclick="window.location='inventory.html'">
+      <span class="nav-icon">◧</span> Inventory
     </div>
   </div>
 
@@ -104,6 +109,9 @@
 
   <!-- TOPBAR -->
   <div class="topbar">
+    <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="topbar-title">Dashboard</div>
     <div style="display:flex; gap:4px; align-items:center">
       <button class="ch-btn active" id="ch-both"       onclick="setChannel('both',this)">Both</button>
@@ -156,13 +164,13 @@
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
             <input type="date" id="date-from" class="date-input" title="From date">
-            <span style="font-size:9px; color:var(--text-dim)">→</span>
+            <span style="font-size: 11px; color:var(--text-dim)">→</span>
             <input type="date" id="date-to" class="date-input" title="To date">
             <button class="apply-btn" onclick="applyDateFilter()">Apply</button>
             <button class="apply-btn" onclick="clearDateFilter()">Clear</button>
             <span style="width:1px; height:14px; background:var(--border); margin:0 4px"></span>
-            <span style="font-size:9px; color:var(--pink)">● Revenue</span>
-            <span style="font-size:9px; color:var(--accent)">● Units</span>
+            <span style="font-size: 11px; color:var(--pink)">● Revenue</span>
+            <span style="font-size: 11px; color:var(--accent)">● Units</span>
           </div>
         </div>
         <div class="chart-canvas-wrap">
@@ -197,9 +205,9 @@
   <div class="modal" id="modal-box">
     <div class="modal-header">
       <div>
-        <div style="font-size:9px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px" id="modal-cat"></div>
+        <div style="font-size: 11px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px" id="modal-cat"></div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:300; color:var(--text-bright)" id="modal-name"></div>
-        <div style="font-size:11px; color:var(--text-dim); margin-top:2px" id="modal-ref"></div>
+        <div style="font-size: 13px; color:var(--text-dim); margin-top:2px" id="modal-ref"></div>
       </div>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
@@ -230,6 +238,22 @@ function toggleTheme() {
   document.getElementById('theme-text').textContent = isLight ? 'Dark Mode' : 'Light Mode';
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
 }
+
+function toggleSidebar() {
+  const s = document.querySelector('.sidebar');
+  const o = document.getElementById('sidebar-overlay');
+  const h = document.getElementById('hamburger-btn');
+  const open = s.classList.contains('open');
+  s.classList.toggle('open', !open);
+  o.classList.toggle('open', !open);
+  h.classList.toggle('open', !open);
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.getElementById('hamburger-btn').classList.remove('open');
+}
+
 function loadTheme() {
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light-theme');
@@ -378,7 +402,7 @@ function buildTopSellers(topProds) {
       <div class="row-num" style="text-align:right">$${price}</div>
       <div class="bar-cell">
         <div class="mini-bar-bg"><div class="mini-bar" style="width:${(p.sold / maxSold * 100).toFixed(0)}%"></div></div>
-        <span style="font-size:11px; color:var(--text); min-width:32px; text-align:right">${p.sold}</span>
+        <span style="font-size: 13px; color:var(--text); min-width:32px; text-align:right">${p.sold}</span>
       </div>
       <div class="row-num positive" style="text-align:right">$${rev > 0 ? (rev / 1000).toFixed(1) + 'k' : (price * p.sold / 1000).toFixed(1) + 'k'}</div>
       <div><span class="badge ${p.status || 'new'}">${(p.status || 'new').toUpperCase()}</span></div>
@@ -419,7 +443,7 @@ function openModal(id) {
       <div style="height:6px;background:var(--muted);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${stPct}%;background:linear-gradient(90deg,var(--pink-dim),var(--pink));border-radius:3px"></div>
       </div>
-      <div style="font-size:10px;color:var(--text-dim);margin-top:6px">${stPct}% sold through</div>
+      <div style="font-size: 12px;color:var(--text-dim);margin-top:6px">${stPct}% sold through</div>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }

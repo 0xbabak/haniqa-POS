@@ -7,8 +7,43 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Bebas+Neue&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<style>
+/* Mobile-only / desktop-only helpers for Cash Register */
+.cr-m-only { display: none; }
+
+@media (max-width: 768px) {
+  /* Show mobile elements, hide desktop ones */
+  .cr-m-only { display: flex; }
+  .cr-d-only { display: none !important; }
+
+  /* Section head: no wrap, smaller title */
+  #cashier-section-head { flex-wrap: nowrap; margin-bottom: 10px; }
+  #cashier-section-head .section-title { font-size: 18px; }
+  #cashier-meta         { display: none; }
+
+  /* Cashier actions: full-width row, filter left / add right */
+  .cashier-header-actions { display: flex !important; margin-bottom: 12px; width: 100%; }
+  #cr-filter-row { margin-left: 0 !important; width: 100%; }
+
+  /* Cash Register stats: 2 cols */
+  #cashier-stats { grid-template-columns: 1fr 1fr !important; }
+
+  /* Sales: stack Reserved / Finalized */
+  #sales-columns { grid-template-columns: 1fr !important; }
+
+  /* Transaction rows: allow wrap */
+  .transaction-header { flex-wrap: wrap; gap: 4px; }
+  .transaction-details { flex-wrap: wrap; gap: 6px; }
+
+  /* Modal footer: stack */
+  .modal-footer { flex-direction: column; gap: 8px; }
+  .modal-footer button { width: 100%; }
+}
+</style>
 </head>
 <body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- ── SIDEBAR ── -->
 <nav class="sidebar">
@@ -42,12 +77,15 @@
     </div>
 
     <div class="nav-divider"></div>
-    <div class="nav-label">Catalogue</div>
+    <div class="nav-label">Products</div>
     <div class="nav-item" onclick="window.location='catalogue.html'">
       <span class="nav-icon">◫</span> All Products
     </div>
     <div class="nav-item" onclick="window.location='catalogue.html#add'">
       <span class="nav-icon">+</span> Add Product
+    </div>
+    <div class="nav-item" onclick="window.location='inventory.html'">
+      <span class="nav-icon">◧</span> Inventory
     </div>
   </div>
 
@@ -64,6 +102,9 @@
 
   <!-- TOPBAR -->
   <div class="topbar">
+    <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="topbar-title" id="topbar-title">POS Terminal</div>
   </div>
 
@@ -79,12 +120,12 @@
       <div class="kpi-card green">
         <div class="kpi-label">Current Cash</div>
         <div id="currentCashDisplay" style="margin:8px 0 4px; font-family:'DM Mono',monospace; font-size:12px; color:var(--text-bright); line-height:1.8">$0.00</div>
-        <div class="kpi-change" style="color: var(--text-dim); font-size: 10px">Cash on hand</div>
+        <div class="kpi-change" style="color: var(--text-dim); font-size: 12px">Cash on hand</div>
       </div>
       <div class="kpi-card gold">
         <div class="kpi-label">Today's Sales</div>
         <div id="todaysSalesDisplay" style="margin:8px 0 4px; font-family:'DM Mono',monospace; font-size:12px; color:var(--text-bright); line-height:1.8">$0.00</div>
-        <div class="kpi-change" style="color: var(--text-dim); font-size: 10px" id="todaysSalesCount">0 transactions</div>
+        <div class="kpi-change" style="color: var(--text-dim); font-size: 12px" id="todaysSalesCount">0 transactions</div>
       </div>
     </div>
 
@@ -118,7 +159,7 @@
         </div>
 
         <div class="payment-section" id="paymentSection" style="display: none">
-          <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:8px">Payment Method</div>
+          <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:8px">Payment Method</div>
           <div class="payment-methods">
             <button class="payment-btn" data-method="cash"   onclick="togglePaymentEntry('cash',   this)">💵 Cash</button>
             <button class="payment-btn" data-method="card"   onclick="togglePaymentEntry('card',   this)">💳 Card</button>
@@ -137,36 +178,56 @@
 
   <!-- ════ CASH REGISTER ════ -->
   <div class="page" id="page-cashier">
-    <div class="section-head">
+    <div class="section-head" id="cashier-section-head">
       <div class="section-title">Cash Register</div>
       <div class="section-line"></div>
-      <div class="section-meta">All transactions</div>
+      <div class="section-meta" id="cashier-meta">All transactions</div>
+      <!-- Mobile-only: report button in the title row -->
+      <button class="cr-m-only" onclick="openReportPicker()"
+        style="padding:5px 11px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; white-space:nowrap; flex-shrink:0">⬇ Report</button>
     </div>
 
     <div class="cashier-header-actions">
-      <button class="btn-primary" onclick="openManualTransactionModal()">+ Add Manual Transaction</button>
-      <div style="display:flex; gap:5px; align-items:center; margin-left:16px">
-        <span style="font-size:9px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-right:2px">Show:</span>
-        <button id="cr-f-all"    onclick="setCRFilter('all',    this)" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; background:var(--pink); border:1px solid var(--pink); color:#0a0a09; cursor:pointer; border-radius:2px">All</button>
-        <button id="cr-f-manual" onclick="setCRFilter('manual', this)" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px">Manual</button>
-        <button id="cr-f-sales"  onclick="setCRFilter('sales',  this)" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px">Sales</button>
+      <!-- Desktop-only: big add + report buttons -->
+      <button id="cr-add-btn" class="btn-primary cr-d-only" onclick="openManualTransactionModal()">+ Add Manual Transaction</button>
+      <div id="cr-filter-row" style="display:flex; gap:5px; align-items:center; margin-left:16px">
+        <!-- Desktop filter buttons -->
+        <span class="cr-d-only" style="font-size:11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-right:2px">Show:</span>
+        <button id="cr-f-all"    class="cr-d-only" onclick="setCRFilter('all',    this)" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; background:var(--pink); border:1px solid var(--pink); color:#0a0a09; cursor:pointer; border-radius:2px">All</button>
+        <button id="cr-f-manual" class="cr-d-only" onclick="setCRFilter('manual', this)" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px">Manual</button>
+        <button id="cr-f-sales"  class="cr-d-only" onclick="setCRFilter('sales',  this)" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px">Sales</button>
+        <!-- Mobile: filter left, add right -->
+        <div class="cr-m-only" style="position:relative">
+          <button id="cr-drop-trigger" onclick="toggleCRDropdown()"
+            style="display:flex; align-items:center; gap:7px; padding:7px 13px; font-family:'DM Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; background:var(--surface); border:1px solid var(--border); color:var(--text); cursor:pointer; border-radius:2px">
+            <span id="cr-drop-label">ALL</span><span style="font-size:9px; opacity:0.55">▾</span>
+          </button>
+          <div id="cr-drop-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:200; background:var(--deep); border:1px solid var(--border); border-radius:3px; overflow:hidden; min-width:130px; box-shadow:0 6px 20px rgba(0,0,0,0.35)">
+            <div onclick="setCRFilterDrop('all','ALL')"    style="padding:11px 16px; font-family:'DM Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; color:var(--text); transition:background 0.12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">All</div>
+            <div onclick="setCRFilterDrop('manual','MANUAL')" style="padding:11px 16px; font-family:'DM Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; color:var(--text); border-top:1px solid var(--border); transition:background 0.12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">Manual</div>
+            <div onclick="setCRFilterDrop('sales','SALES')"  style="padding:11px 16px; font-family:'DM Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; color:var(--text); border-top:1px solid var(--border); transition:background 0.12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">Sales</div>
+          </div>
+        </div>
+        <div class="cr-m-only" style="flex:1; min-width:0"></div>
+        <button class="cr-m-only btn-primary" onclick="openManualTransactionModal()"
+          style="padding:8px 14px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; white-space:nowrap; flex-shrink:0; border-radius:2px; margin-left:auto">+ Add Transaction</button>
       </div>
-      <div style="flex: 1"></div>
-      <button onclick="generateDailyReport()" style="padding:6px 14px; font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; white-space:nowrap">⬇ Daily Report</button>
+      <div id="cr-spacer" class="cr-d-only" style="flex:1"></div>
+      <button class="cr-d-only" onclick="openReportPicker()" style="padding:6px 14px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; white-space:nowrap">⬇ Report</button>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px">
+    <div id="cashier-stats" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px">
       <div style="padding:10px 14px; background:var(--deep); border:1px solid var(--border); border-radius:3px">
-        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:5px">Total In</div>
-        <div id="totalMoneyIn" style="color:var(--accent); font-family:'DM Mono',monospace; font-size:11px; line-height:1.8">$0.00</div>
+        <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:5px">Total In</div>
+        <div id="totalMoneyIn" style="color:var(--accent); font-family:'DM Mono',monospace; font-size: 13px; line-height:1.8">$0.00</div>
       </div>
       <div style="padding:10px 14px; background:var(--deep); border:1px solid var(--border); border-radius:3px">
-        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:5px">Total Out</div>
-        <div id="totalMoneyOut" style="color:var(--red); font-family:'DM Mono',monospace; font-size:11px; line-height:1.8">$0.00</div>
+        <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:5px">Total Out</div>
+        <div id="totalMoneyOut" style="color:var(--red); font-family:'DM Mono',monospace; font-size: 13px; line-height:1.8">$0.00</div>
       </div>
       <div style="padding:10px 14px; background:var(--deep); border:1px solid var(--border); border-radius:3px">
-        <div style="font-size:9px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:5px">Net</div>
-        <div id="netAmount" style="color:var(--text-bright); font-family:'DM Mono',monospace; font-size:11px; line-height:1.8">$0.00</div>
+        <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:5px">Net</div>
+        <div id="netAmount" style="color:var(--text-bright); font-family:'DM Mono',monospace; font-size: 13px; line-height:1.8">$0.00</div>
       </div>
     </div>
 
@@ -181,13 +242,13 @@
       <div class="section-meta">Reserved & Finalized</div>
     </div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px">
+    <div id="sales-columns" style="display:grid; grid-template-columns:1fr 1fr; gap:20px">
 
       <!-- Reserved -->
       <div>
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border)">
-          <div style="font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold,#c9a84c)">Reserved</div>
-          <span id="reservedCount" style="font-size:9px; font-family:'DM Mono',monospace; color:var(--text-dim)">0</span>
+          <div style="font-size: 12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold,#c9a84c)">Reserved</div>
+          <span id="reservedCount" style="font-size: 11px; font-family:'DM Mono',monospace; color:var(--text-dim)">0</span>
         </div>
         <div id="reservedSalesList"></div>
       </div>
@@ -195,8 +256,8 @@
       <!-- Finalized -->
       <div>
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border)">
-          <div style="font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent)">Finalized</div>
-          <span id="finalizedCount" style="font-size:9px; font-family:'DM Mono',monospace; color:var(--text-dim)">0</span>
+          <div style="font-size: 12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent)">Finalized</div>
+          <span id="finalizedCount" style="font-size: 11px; font-family:'DM Mono',monospace; color:var(--text-dim)">0</span>
         </div>
         <div id="finalizedSalesList"></div>
       </div>
@@ -206,12 +267,39 @@
 
 </div><!-- /main -->
 
+<!-- ── REPORT DATE PICKER ── -->
+<div class="modal-overlay" id="report-picker-modal" onclick="if(event.target===this)closeReportPicker()" style="display:none">
+  <div class="modal" style="width:340px">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:11px; letter-spacing:0.2em; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px">Cash Register</div>
+        <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)">Generate Report</div>
+      </div>
+      <button class="modal-close" onclick="closeReportPicker()">✕</button>
+    </div>
+    <div style="padding:20px 24px; display:flex; flex-direction:column; gap:14px">
+      <div>
+        <label style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); display:block; margin-bottom:6px">From</label>
+        <input type="date" id="report-from" class="form-input" style="width:100%; color-scheme:dark">
+      </div>
+      <div>
+        <label style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); display:block; margin-bottom:6px">To</label>
+        <input type="date" id="report-to" class="form-input" style="width:100%; color-scheme:dark">
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; padding-top:4px">
+        <button onclick="closeReportPicker()" style="padding:8px 16px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px">Cancel</button>
+        <button onclick="generateReport()" class="btn-primary" style="padding:9px 20px; font-size:12px; letter-spacing:0.12em">⬇ Generate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── FINALIZE MODAL ── -->
 <div class="modal-overlay" id="finalize-modal" onclick="if(event.target===this) closeFinalizeModal()">
   <div class="modal" style="width:620px; max-height:90vh; display:flex; flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <div>
-        <div style="font-size:9px; letter-spacing:0.2em; color:var(--gold,#c9a84c); text-transform:uppercase; margin-bottom:6px">Finalize Reserved Sale</div>
+        <div style="font-size: 11px; letter-spacing:0.2em; color:var(--gold,#c9a84c); text-transform:uppercase; margin-bottom:6px">Finalize Reserved Sale</div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)" id="finalize-txn-id-display"></div>
       </div>
       <button class="modal-close" onclick="closeFinalizeModal()">✕</button>
@@ -235,6 +323,20 @@
           <button class="payment-btn"        data-fin-method="mobile" onclick="selectFinalizePayment('mobile', this)">📱 Mobile</button>
           <button class="payment-btn"        data-fin-method="other"  onclick="selectFinalizePayment('other',  this)">🔗 Other</button>
         </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px">
+          <div>
+            <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">$ USD</div>
+            <input type="number" id="finalize-usd" class="form-input" value="0" step="0.01" min="0">
+          </div>
+          <div>
+            <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">€ EUR</div>
+            <input type="number" id="finalize-eur" class="form-input" value="0" step="0.01" min="0">
+          </div>
+          <div>
+            <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">₺ TRY</div>
+            <input type="number" id="finalize-tl" class="form-input" value="0" step="0.01" min="0">
+          </div>
+        </div>
       </div>
 
       <div class="form-actions">
@@ -250,7 +352,7 @@
   <div class="modal" style="width:620px; max-height:90vh; display:flex; flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <div>
-        <div style="font-size:9px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; margin-bottom:6px">Edit Finalized Sale</div>
+        <div style="font-size: 11px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; margin-bottom:6px">Edit Finalized Sale</div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)" id="edit-sale-txn-id"></div>
       </div>
       <button class="modal-close" onclick="closeEditSaleModal()">✕</button>
@@ -272,6 +374,20 @@
           <button class="payment-btn" data-esale-method="mobile" onclick="selectEditSalePayment('mobile', this)">📱 Mobile</button>
           <button class="payment-btn" data-esale-method="other"  onclick="selectEditSalePayment('other',  this)">🔗 Other</button>
         </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px">
+          <div>
+            <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">$ USD</div>
+            <input type="number" id="edit-sale-usd" class="form-input" value="0" step="0.01" min="0">
+          </div>
+          <div>
+            <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">€ EUR</div>
+            <input type="number" id="edit-sale-eur" class="form-input" value="0" step="0.01" min="0">
+          </div>
+          <div>
+            <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">₺ TRY</div>
+            <input type="number" id="edit-sale-tl" class="form-input" value="0" step="0.01" min="0">
+          </div>
+        </div>
       </div>
 
       <div class="form-actions">
@@ -288,7 +404,7 @@
     <div class="modal-header">
       <div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)">Edit Transaction</div>
-        <div style="font-size:10px; color:var(--text-dim); margin-top:2px; letter-spacing:0.05em">Manual transactions only</div>
+        <div style="font-size: 12px; color:var(--text-dim); margin-top:2px; letter-spacing:0.05em">Manual transactions only</div>
       </div>
       <button class="modal-close" onclick="closeEditTransactionModal()">✕</button>
     </div>
@@ -331,9 +447,9 @@
   <div class="modal" style="width: 520px">
     <div class="modal-header">
       <div>
-        <div style="font-size:9px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px">Add to Cart</div>
+        <div style="font-size: 11px; letter-spacing:0.25em; color:var(--pink-dim); text-transform:uppercase; margin-bottom:6px">Add to Cart</div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)" id="product-select-name"></div>
-        <div style="font-size:11px; color:var(--text-dim); margin-top:2px" id="product-select-ref"></div>
+        <div style="font-size: 13px; color:var(--text-dim); margin-top:2px" id="product-select-ref"></div>
       </div>
       <button class="modal-close" onclick="closeProductSelectModal()">✕</button>
     </div>
@@ -359,7 +475,7 @@
 
         <div class="form-group full">
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,105,180,0.1); border: 1px solid var(--pink-dim); border-radius: 4px">
-            <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em">Price</span>
+            <span style="font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em">Price</span>
             <span style="font-family: 'Cormorant Garamond', serif; font-size: 28px; color: var(--pink)" id="product-select-price">$0</span>
           </div>
         </div>
@@ -398,7 +514,7 @@
     <div class="modal-header">
       <div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)">Add Manual Transaction</div>
-        <div style="font-size:10px; color:var(--text-dim); margin-top:2px; letter-spacing:0.05em">Record money in or out</div>
+        <div style="font-size: 12px; color:var(--text-dim); margin-top:2px; letter-spacing:0.05em">Record money in or out</div>
       </div>
       <button class="modal-close" onclick="closeManualTxModal()">✕</button>
     </div>
@@ -414,9 +530,22 @@
             <label class="form-label">Description</label>
             <input type="text" class="form-input" id="manual-tx-desc" placeholder="e.g. Supplier payment, Customer refund" required>
           </div>
-          <div class="form-group">
-            <label class="form-label">Amount ($)</label>
-            <input type="number" class="form-input" id="manual-tx-amount" placeholder="0.00" step="0.01" min="0" required>
+          <div class="form-group full">
+            <label class="form-label">Amount</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:4px">
+              <div>
+                <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">$ USD</div>
+                <input type="number" class="form-input" id="manual-tx-usd" placeholder="0.00" step="0.01" min="0" value="0">
+              </div>
+              <div>
+                <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">€ EUR</div>
+                <input type="number" class="form-input" id="manual-tx-eur" placeholder="0.00" step="0.01" min="0" value="0">
+              </div>
+              <div>
+                <div style="font-size: 11px; color:var(--text-dim); margin-bottom:4px; font-family:'DM Mono',monospace; letter-spacing:0.06em">₺ TRY</div>
+                <input type="number" class="form-input" id="manual-tx-tl" placeholder="0.00" step="0.01" min="0" value="0">
+              </div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Payment Method</label>
@@ -468,6 +597,21 @@ function toggleTheme() {
   document.getElementById('theme-icon').textContent = isLight ? '◑' : '◐';
   document.getElementById('theme-text').textContent = isLight ? 'Dark Mode' : 'Light Mode';
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+function toggleSidebar() {
+  const s = document.querySelector('.sidebar');
+  const o = document.getElementById('sidebar-overlay');
+  const h = document.getElementById('hamburger-btn');
+  const open = s.classList.contains('open');
+  s.classList.toggle('open', !open);
+  o.classList.toggle('open', !open);
+  h.classList.toggle('open', !open);
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.getElementById('hamburger-btn').classList.remove('open');
 }
 
 function loadTheme() {
@@ -608,7 +752,7 @@ let selectedSize     = '';
 function buildColorOptions(product, channel) {
   const colors = getColorsForChannel(product, channel);
   if (colors.length === 0) {
-    return `<div style="font-size:10px; color:var(--text-dim); padding:4px 0">No ${channel} inventory configured for this product.</div>`;
+    return `<div style="font-size: 12px; color:var(--text-dim); padding:4px 0">No ${channel} inventory configured for this product.</div>`;
   }
   return colors.map(colorName => {
     const qty    = getColorTotal(product, colorName, channel);
@@ -616,8 +760,8 @@ function buildColorOptions(product, channel) {
     return `<button class="color-option filter-btn" data-color="${colorName}"
         onclick="${isZero ? '' : `selectColor('${colorName}', this)`}"
         style="padding:8px 12px; ${isZero ? 'opacity:0.4; cursor:not-allowed; text-decoration:line-through;' : ''}">
-      <span style="font-size:10px; letter-spacing:0.06em">${colorName}</span>
-      <span style="font-size:9px; opacity:0.6; display:block; margin-top:2px; font-family:'DM Mono',monospace">${qty} left</span>
+      <span style="font-size: 12px; letter-spacing:0.06em">${colorName}</span>
+      <span style="font-size: 11px; opacity:0.6; display:block; margin-top:2px; font-family:'DM Mono',monospace">${qty} left</span>
     </button>`;
   }).join('');
 }
@@ -632,7 +776,7 @@ function buildSizeOptions(product, color, channel) {
         onclick="${isZero ? '' : `selectSize('${s}', this)`}"
         style="padding:10px 14px; ${isZero ? 'opacity:0.4; cursor:not-allowed; text-decoration:line-through;' : ''}">
       ${sizeLabel}
-      <span style="font-size:9px; opacity:0.6; display:block; margin-top:2px; font-family:'DM Mono',monospace">${qty} left</span>
+      <span style="font-size: 11px; opacity:0.6; display:block; margin-top:2px; font-family:'DM Mono',monospace">${qty} left</span>
     </button>`;
   }).join('');
 }
@@ -813,8 +957,7 @@ function togglePaymentEntry(method, btn) {
     paymentEntries.splice(idx, 1);
     btn.classList.remove('active');
   } else {
-    const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-    paymentEntries.push({ method, currency: 'USD', amount: parseFloat(cartTotal.toFixed(2)) });
+    paymentEntries.push({ method, usd: 0, eur: 0, tl: 0 });
     btn.classList.add('active');
   }
   renderPaymentEntries();
@@ -826,30 +969,38 @@ function renderPaymentEntries() {
   if (paymentEntries.length === 0) { el.innerHTML = ''; return; }
   const methodIcons = { cash: '💵', card: '💳', mobile: '📱', other: '🔗' };
   el.innerHTML = paymentEntries.map(e => `
-    <div style="display:flex; align-items:center; gap:8px; margin-top:8px; padding:10px 12px; background:var(--deep); border:1px solid var(--border); border-radius:3px">
-      <span style="font-size:13px">${methodIcons[e.method] || ''}</span>
-      <span style="font-size:10px; color:var(--text-dim); font-family:'DM Mono',monospace; letter-spacing:0.06em; text-transform:uppercase; min-width:46px">${e.method}</span>
-      <select onchange="updatePaymentEntryCurrency('${e.method}', this.value)"
-        style="flex:0 0 auto; padding:5px 8px; background:var(--card); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size:10px; border-radius:2px; cursor:pointer">
-        <option value="USD" ${e.currency === 'USD' ? 'selected' : ''}>$ USD</option>
-        <option value="TRY" ${e.currency === 'TRY' ? 'selected' : ''}>₺ TRY</option>
-        <option value="EUR" ${e.currency === 'EUR' ? 'selected' : ''}>€ EUR</option>
-      </select>
-      <input type="number" value="${e.amount}" step="0.01" min="0"
-        onchange="updatePaymentEntryAmount('${e.method}', this.value)"
-        style="flex:1; padding:5px 8px; background:var(--card); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size:11px; border-radius:2px; min-width:0">
+    <div style="margin-top:8px; padding:10px 12px; background:var(--deep); border:1px solid var(--border); border-radius:3px">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">
+        <span style="font-size:13px">${methodIcons[e.method] || ''}</span>
+        <span style="font-size: 12px; color:var(--text-dim); font-family:'DM Mono',monospace; letter-spacing:0.06em; text-transform:uppercase">${e.method}</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px">
+        <div>
+          <div style="font-size: 11px; color:var(--text-dim); margin-bottom:3px; font-family:'DM Mono',monospace; letter-spacing:0.06em">$ USD</div>
+          <input type="number" value="${e.usd}" step="0.01" min="0"
+            onchange="updatePaymentField('${e.method}', 'usd', this.value)"
+            style="width:100%; padding:5px 8px; background:var(--card); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size: 13px; border-radius:2px; box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size: 11px; color:var(--text-dim); margin-bottom:3px; font-family:'DM Mono',monospace; letter-spacing:0.06em">€ EUR</div>
+          <input type="number" value="${e.eur}" step="0.01" min="0"
+            onchange="updatePaymentField('${e.method}', 'eur', this.value)"
+            style="width:100%; padding:5px 8px; background:var(--card); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size: 13px; border-radius:2px; box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size: 11px; color:var(--text-dim); margin-bottom:3px; font-family:'DM Mono',monospace; letter-spacing:0.06em">₺ TRY</div>
+          <input type="number" value="${e.tl}" step="0.01" min="0"
+            onchange="updatePaymentField('${e.method}', 'tl', this.value)"
+            style="width:100%; padding:5px 8px; background:var(--card); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size: 13px; border-radius:2px; box-sizing:border-box">
+        </div>
+      </div>
     </div>
   `).join('');
 }
 
-function updatePaymentEntryCurrency(method, currency) {
+function updatePaymentField(method, field, value) {
   const e = paymentEntries.find(x => x.method === method);
-  if (e) e.currency = currency;
-}
-
-function updatePaymentEntryAmount(method, value) {
-  const e = paymentEntries.find(x => x.method === method);
-  if (e) { const v = parseFloat(value); if (!isNaN(v) && v >= 0) e.amount = v; }
+  if (e) { const v = parseFloat(value); if (!isNaN(v) && v >= 0) e[field] = v; }
 }
 
 function clearCart() {
@@ -882,17 +1033,21 @@ function openSaleConfirmModal(isReservation) {
   const paymentSummaryHtml = paymentEntries.length === 0
     ? '<span style="color:var(--text-dim)">—</span>'
     : paymentEntries.map(e => {
-        const sym = CURR_SYMBOLS[e.currency] || e.currency;
-        return `<span style="margin-right:10px"><strong style="color:var(--pink); text-transform:uppercase">${e.method}</strong> <span style="color:var(--text)">${sym}${e.amount.toFixed(2)}</span></span>`;
+        const parts = [];
+        if (e.usd > 0) parts.push(`$${e.usd.toFixed(2)}`);
+        if (e.eur > 0) parts.push(`€${e.eur.toFixed(2)}`);
+        if (e.tl  > 0) parts.push(`₺${e.tl.toFixed(2)}`);
+        const amounts = parts.join(' + ') || '—';
+        return `<span style="margin-right:10px"><strong style="color:var(--pink); text-transform:uppercase">${e.method}</strong> <span style="color:var(--text)">${amounts}</span></span>`;
       }).join('');
 
   const footerHtml = isReservation
     ? `<div style="margin-top:12px; padding:8px 12px; background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.4); border-radius:3px">
-        <span style="font-size:11px; color:var(--text); letter-spacing:0.05em">⚠ Stock will be reserved immediately. <strong style="color:var(--gold,#c9a84c)">Payment collected on pickup.</strong></span>
+        <span style="font-size: 13px; color:var(--text); letter-spacing:0.05em">⚠ Stock will be reserved immediately. <strong style="color:var(--gold,#c9a84c)">Payment collected on pickup.</strong></span>
        </div>`
     : `<div style="margin-top:12px; padding:8px 12px; background:rgba(255,105,180,0.1); border:1px solid var(--pink-dim); border-radius:3px">
-        <div style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px">Payment</div>
-        <div style="font-size:11px; letter-spacing:0.05em; line-height:1.8">${paymentSummaryHtml}</div>
+        <div style="font-size: 11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px">Payment</div>
+        <div style="font-size: 13px; letter-spacing:0.05em; line-height:1.8">${paymentSummaryHtml}</div>
        </div>`;
 
   document.getElementById('confirm-title').textContent = isReservation ? 'Reserve Sale' : 'Confirm Sale';
@@ -902,7 +1057,7 @@ function openSaleConfirmModal(isReservation) {
 
   document.getElementById('confirm-message').innerHTML = `
     <div style="margin-bottom:16px">
-      <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px">Items:</div>
+      <div style="font-size: 13px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px">Items:</div>
       ${itemsHtml}
     </div>
     <div style="display:flex; justify-content:space-between; padding:12px 0; border-top:2px solid var(--pink); margin-top:12px">
@@ -948,7 +1103,13 @@ async function confirmAction() {
         total: pendingSaleData.total,
         paymentMethod: pendingIsReservation ? null : (paymentEntries.length === 0
           ? null
-          : paymentEntries.map(e => `${e.method} (${e.currency} ${e.amount.toFixed(2)})`).join(', ')),
+          : paymentEntries.flatMap(e => {
+              const parts = [];
+              if (e.usd > 0) parts.push(`${e.method} (USD ${e.usd.toFixed(2)})`);
+              if (e.eur > 0) parts.push(`${e.method} (EUR ${e.eur.toFixed(2)})`);
+              if (e.tl  > 0) parts.push(`${e.method} (TRY ${e.tl.toFixed(2)})`);
+              return parts;
+            }).join(', ') || null),
         description: pendingSaleData.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
         items: pendingSaleData.items.map(i => ({
           productId: i.id,
@@ -964,7 +1125,13 @@ async function confirmAction() {
     const txn = await res.json();
     const txId = txn.id;
     const payAmt = paymentEntries.length
-      ? paymentEntries.map(e => `${CURR_SYMBOLS[e.currency] || e.currency}${e.amount.toFixed(2)}`).join(' + ')
+      ? paymentEntries.flatMap(e => {
+          const parts = [];
+          if (e.usd > 0) parts.push(`$${e.usd.toFixed(2)}`);
+          if (e.eur > 0) parts.push(`€${e.eur.toFixed(2)}`);
+          if (e.tl  > 0) parts.push(`₺${e.tl.toFixed(2)}`);
+          return parts;
+        }).join(' + ') || `$${pendingSaleData.total.toFixed(2)}`
       : `$${pendingSaleData.total.toFixed(2)}`;
     cart = [];
     paymentEntries = [];
@@ -998,7 +1165,7 @@ function showNotification(title, message, type = 'success') {
       <div style="font-size: 24px; font-weight: bold;">${type === 'success' ? '✓' : '✕'}</div>
       <div style="flex: 1">
         <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px">${title}</div>
-        <div style="font-size: 11px; opacity: 0.9">${message}</div>
+        <div style="font-size: 13px; opacity: 0.9">${message}</div>
       </div>
     </div>`;
   document.body.appendChild(notification);
@@ -1082,7 +1249,7 @@ function renderTransactions() {
       <div style="padding: 60px 20px; text-align: center; color: var(--text-dim)">
         <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.3">💰</div>
         <p style="font-size: 13px">${emptyMsg}</p>
-        <p style="font-size: 11px; margin-top: 6px">Completed sales and manual entries will appear here</p>
+        <p style="font-size: 13px; margin-top: 6px">Completed sales and manual entries will appear here</p>
       </div>`;
     return;
   }
@@ -1133,9 +1300,9 @@ function renderTransactions() {
 
     // Sales: no edit or delete in Cash Register — manage them in the Sales tab
     const actionBtns = isSale
-      ? `<span style="font-size:9px; color:var(--text-dim); font-family:'DM Mono',monospace; padding:3px 8px; border:1px solid var(--border); border-radius:2px; opacity:0.5; cursor:default" title="Manage sales in the Sales tab">Sales tab</span>`
-      : `<button onclick="openEditTransactionModal('${txn.id}')" style="padding:3px 8px; background:none; border:1px solid var(--border); color:var(--text-dim); font-size:9px; font-family:'DM Mono',monospace; cursor:pointer; border-radius:2px; margin-left:6px" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">✎ EDIT</button>
-         <button onclick="deleteTransaction('${txn.id}', '${(txn.description||'').replace(/'/g,"\\'").substring(0,40)}', false)" style="padding:3px 8px; background:none; border:1px solid var(--border); color:var(--text-dim); font-size:9px; font-family:'DM Mono',monospace; cursor:pointer; border-radius:2px; margin-left:2px" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">✕ DEL</button>`;
+      ? `<span style="font-size: 11px; color:var(--text-dim); font-family:'DM Mono',monospace; padding:3px 8px; border:1px solid var(--border); border-radius:2px; opacity:0.5; cursor:default" title="Manage sales in the Sales tab">Sales tab</span>`
+      : `<button onclick="openEditTransactionModal('${txn.id}')" style="padding:3px 8px; background:none; border:1px solid var(--border); color:var(--text-dim); font-size: 11px; font-family:'DM Mono',monospace; cursor:pointer; border-radius:2px; margin-left:6px" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">✎ EDIT</button>
+         <button onclick="deleteTransaction('${txn.id}', '${(txn.description||'').replace(/'/g,"\\'").substring(0,40)}', false)" style="padding:3px 8px; background:none; border:1px solid var(--border); color:var(--text-dim); font-size: 11px; font-family:'DM Mono',monospace; cursor:pointer; border-radius:2px; margin-left:2px" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">✕ DEL</button>`;
 
     return `
       <div class="transaction-item ${itemClass}">
@@ -1171,14 +1338,45 @@ function updateManualTxTypeButtons(type) {
   document.getElementById('manual-tx-type').value = type;
 }
 
-function generateDailyReport() {
+function openReportPicker() {
+  const today  = new Date().toISOString().split('T')[0];
+  const scheme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  document.getElementById('report-from').value = today;
+  document.getElementById('report-to').value   = today;
+  document.getElementById('report-from').style.colorScheme = scheme;
+  document.getElementById('report-to').style.colorScheme   = scheme;
+  document.getElementById('report-picker-modal').style.display = 'flex';
+}
+function closeReportPicker() {
+  document.getElementById('report-picker-modal').style.display = 'none';
+}
+function generateReport() {
+  const fromStr = document.getElementById('report-from').value;
+  const toStr   = document.getElementById('report-to').value;
+  if (!fromStr || !toStr) { alert('Please select a date range.'); return; }
+  if (fromStr > toStr)    { alert('"From" date must be before "To" date.'); return; }
+  closeReportPicker();
+  generateDailyReport(fromStr, toStr);
+}
+
+function generateDailyReport(fromStr, toStr) {
+  const fromDate = new Date(fromStr + 'T00:00:00');
+  const toDate   = new Date(toStr   + 'T23:59:59');
+
+  const isSingleDay = fromStr === toStr;
+  const fmtDate = d => d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const dateStr = isSingleDay
+    ? fmtDate(fromDate)
+    : `${fromDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} — ${toDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+
   const today  = new Date();
-  const dateStr = today.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   const tsStr   = today.toLocaleString('en-US', { hour:'2-digit', minute:'2-digit', hour12:true });
 
-  const completed = transactions.filter(t =>
-    t.type !== 'sale' || t.status === 'completed' || !t.status
-  );
+  const completed = transactions.filter(t => {
+    if (t.type === 'sale' && t.status !== 'completed' && t.status) return false;
+    if (!t.timestamp) return true;
+    return t.timestamp >= fromDate && t.timestamp <= toDate;
+  });
 
   const rptInCurr  = { USD: startingCashAmount, TRY: 0, EUR: 0 };
   const rptOutCurr = { USD: 0, TRY: 0, EUR: 0 };
@@ -1215,8 +1413,8 @@ function generateDailyReport() {
       : '—';
     return `<tr>
       <td style="color:#aaa">${i + 1}</td>
-      <td style="color:#aaa; font-family:monospace; font-size:10px">${t.id}</td>
-      <td><span style="color:${color}; font-size:9px; letter-spacing:0.06em; text-transform:uppercase">${TYPE[t.type] || t.type}</span></td>
+      <td style="color:#aaa; font-family:monospace; font-size: 12px">${t.id}</td>
+      <td><span style="color:${color}; font-size: 11px; letter-spacing:0.06em; text-transform:uppercase">${TYPE[t.type] || t.type}</span></td>
       <td>${t.description || '—'}</td>
       <td style="color:#888">${pmDisplay}</td>
       <td style="text-align:right; font-weight:500; color:${color}">${amtStr}</td>
@@ -1227,30 +1425,30 @@ function generateDailyReport() {
   const html = `<!DOCTYPE html><html>
 <head>
   <meta charset="UTF-8">
-  <title>Daily Report — haniqa</title>
+  <title>Report — haniqa</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@300;400&display=swap');
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'DM Mono',monospace;color:#111;background:#fff;padding:40px 48px;font-size:11px}
+    body{font-family:'DM Mono',monospace;color:#111;background:#fff;padding:40px 48px;font-size: 13px}
     .brand{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;letter-spacing:0.04em}
     .brand span{color:#d63384}
-    .subtitle{font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:#666;margin-top:3px}
-    .report-date{font-size:10px;color:#888;margin-top:6px}
+    .subtitle{font-size: 11px;letter-spacing:0.25em;text-transform:uppercase;color:#666;margin-top:3px}
+    .report-date{font-size: 12px;color:#888;margin-top:6px}
     hr{border:none;border-top:1.5px solid #111;margin:20px 0 28px}
     .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
     .card{border:1px solid #ddd;padding:14px 16px}
-    .card-label{font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#999}
+    .card-label{font-size: 10px;letter-spacing:0.2em;text-transform:uppercase;color:#999}
     .card-value{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;margin-top:6px}
     table{width:100%;border-collapse:collapse}
-    th{padding:8px 10px;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;background:#f7f7f7;text-align:left;border-bottom:1px solid #ddd}
+    th{padding:8px 10px;font-size: 10px;letter-spacing:0.15em;text-transform:uppercase;background:#f7f7f7;text-align:left;border-bottom:1px solid #ddd}
     td{padding:8px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
-    .footer{margin-top:36px;padding-top:14px;border-top:1px solid #ddd;font-size:9px;color:#aaa;display:flex;justify-content:space-between}
+    .footer{margin-top:36px;padding-top:14px;border-top:1px solid #ddd;font-size: 11px;color:#aaa;display:flex;justify-content:space-between}
     @media print{body{padding:24px 32px}}
   </style>
 </head>
 <body>
   <div class="brand">han<span>iq</span>a</div>
-  <div class="subtitle">Daily Cash Register Report</div>
+  <div class="subtitle">Cash Register Report</div>
   <div class="report-date">${dateStr}</div>
   <hr>
   <div class="summary">
@@ -1296,15 +1494,24 @@ function generateDailyReport() {
 async function submitManualTransaction() {
   const type = document.getElementById('manual-tx-type').value;
   const description = document.getElementById('manual-tx-desc').value.trim();
-  const amount = parseFloat(document.getElementById('manual-tx-amount').value);
+  const usd = parseFloat(document.getElementById('manual-tx-usd').value) || 0;
+  const eur = parseFloat(document.getElementById('manual-tx-eur').value) || 0;
+  const tl  = parseFloat(document.getElementById('manual-tx-tl').value)  || 0;
   const method = document.getElementById('manual-tx-method').value || 'cash';
   const location = document.getElementById('manual-tx-location').value;
-  if (!description || !amount || amount <= 0) { alert('Please enter a description and valid amount'); return; }
+  if (!description) { alert('Please enter a description'); return; }
+  if (usd <= 0 && eur <= 0 && tl <= 0) { alert('Please enter at least one amount'); return; }
+  const currParts = [];
+  if (usd > 0) currParts.push(`(USD ${usd.toFixed(2)})`);
+  if (eur > 0) currParts.push(`(EUR ${eur.toFixed(2)})`);
+  if (tl  > 0) currParts.push(`(TRY ${tl.toFixed(2)})`);
+  const paymentMethodStr = `${method} ${currParts.join(' ')}`.trim();
+  const total = usd + eur + tl;
   try {
     const res = await fetch('/api/transactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, total: amount, paymentMethod: method, description, location, items: [] }),
+      body: JSON.stringify({ type, total, paymentMethod: paymentMethodStr, description, location, items: [] }),
     });
     if (!res.ok) throw new Error('Server error');
     closeManualTxModal();
@@ -1325,8 +1532,29 @@ function setCRFilter(f, el) {
   document.getElementById('cr-f-all').style.cssText    += f === 'all'    ? active : idle;
   document.getElementById('cr-f-manual').style.cssText += f === 'manual' ? active : idle;
   document.getElementById('cr-f-sales').style.cssText  += f === 'sales'  ? active : idle;
+  // Keep mobile dropdown label in sync
+  const lbl = document.getElementById('cr-drop-label');
+  if (lbl) lbl.textContent = f.toUpperCase();
   renderTransactions();
 }
+
+function toggleCRDropdown() {
+  const m = document.getElementById('cr-drop-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+function closeCRDropdown() {
+  const m = document.getElementById('cr-drop-menu');
+  if (m) m.style.display = 'none';
+}
+function setCRFilterDrop(filter, label) {
+  document.getElementById('cr-drop-label').textContent = label;
+  closeCRDropdown();
+  setCRFilter(filter, null);
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#cr-filter-row')) closeCRDropdown();
+});
 
 // ── TRANSACTION EDIT / DELETE ──
 async function deleteTransaction(id, desc, isSale) {
@@ -1439,7 +1667,8 @@ function openEditSaleModal(txnId) {
   if (!t) return;
 
   editingSaleTxnId         = txnId;
-  editingSalePaymentMethod = t.payment_method || 'cash';
+  // Extract bare method name (e.g. "cash" from "cash (USD 100.00)")
+  editingSalePaymentMethod = (t.payment_method || 'cash').split(' (')[0].trim() || 'cash';
 
   editSaleCartItems = (t.items || []).map(item => ({
     itemId:    item.id,
@@ -1459,6 +1688,12 @@ function openEditSaleModal(txnId) {
   const activeBtn = document.querySelector(`[data-esale-method="${editingSalePaymentMethod}"]`);
   if (activeBtn) activeBtn.classList.add('active');
 
+  // Pre-fill currency amounts from existing payment_method
+  const existingCurr = parseTxCurrencies(t);
+  document.getElementById('edit-sale-usd').value = existingCurr.USD > 0 ? existingCurr.USD.toFixed(2) : '0';
+  document.getElementById('edit-sale-eur').value = existingCurr.EUR > 0 ? existingCurr.EUR.toFixed(2) : '0';
+  document.getElementById('edit-sale-tl').value  = existingCurr.TRY > 0 ? existingCurr.TRY.toFixed(2) : '0';
+
   renderEditSaleCart();
   document.getElementById('edit-sale-modal').style.display = 'flex';
   document.getElementById('edit-sale-modal').classList.add('open');
@@ -1475,7 +1710,7 @@ function renderEditSaleCart() {
   const el = document.getElementById('edit-sale-cart-items');
 
   if (editSaleCartItems.length === 0) {
-    el.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-dim); font-size:11px; border:1px dashed var(--border); border-radius:4px">All items removed — saving will record a $0.00 sale</div>`;
+    el.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-dim); font-size: 13px; border:1px dashed var(--border); border-radius:4px">All items removed — saving will record a $0.00 sale</div>`;
     document.getElementById('edit-sale-total-display').textContent = `$0.00`;
     return;
   }
@@ -1490,7 +1725,7 @@ function renderEditSaleCart() {
     return `
     <div class="cart-item" style="border-bottom:1px solid var(--border); margin-bottom:0; padding:10px 0">
       <div class="cart-item-details">
-        <div class="cart-item-name" style="font-size:11px">${name}${details ? `<span style="color:var(--text-dim); font-size:10px"> — ${details}</span>` : ''}</div>
+        <div class="cart-item-name" style="font-size: 13px">${name}${details ? `<span style="color:var(--text-dim); font-size: 12px"> — ${details}</span>` : ''}</div>
         <div class="cart-item-price-edit">
           $<input type="number" class="price-edit-input" value="${item.unitPrice.toFixed(2)}" step="0.01" min="0"
             onblur="updateEditSaleItemPrice(${item.itemId}, this.value)"
@@ -1546,6 +1781,14 @@ async function confirmEditSale() {
   if (!editingSaleTxnId) return;
   const txnId  = editingSaleTxnId;
   const method = editingSalePaymentMethod;
+  const usd = parseFloat(document.getElementById('edit-sale-usd').value) || 0;
+  const eur = parseFloat(document.getElementById('edit-sale-eur').value) || 0;
+  const tl  = parseFloat(document.getElementById('edit-sale-tl').value)  || 0;
+  const currParts = [];
+  if (usd > 0) currParts.push(`(USD ${usd.toFixed(2)})`);
+  if (eur > 0) currParts.push(`(EUR ${eur.toFixed(2)})`);
+  if (tl  > 0) currParts.push(`(TRY ${tl.toFixed(2)})`);
+  const paymentMethodStr = currParts.length ? `${method} ${currParts.join(' ')}` : method;
   const items  = editSaleCartItems.map(i => ({
     itemId:    i.itemId,
     quantity:  i.quantity,
@@ -1558,17 +1801,20 @@ async function confirmEditSale() {
     const res = await fetch(`/api/transactions/${txnId}/edit`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ paymentMethod: method, items }),
+      body:    JSON.stringify({ paymentMethod: paymentMethodStr, items }),
     });
     if (!res.ok) throw new Error('Server error');
     const txn      = await res.json();
     const newTotal = parseFloat(txn.total).toFixed(2);
+    const payAmt = currParts.length
+      ? [usd > 0 ? `$${usd.toFixed(2)}` : null, eur > 0 ? `€${eur.toFixed(2)}` : null, tl > 0 ? `₺${tl.toFixed(2)}` : null].filter(Boolean).join(' + ')
+      : method;
     closeEditSaleModal();
     await loadAndRenderSales();
     await loadProducts();
     renderPOSProducts();
     await updatePOSStatistics();
-    showNotification('Sale Updated', `${txnId} · $${newTotal} · ${method}`, 'success');
+    showNotification('Sale Updated', `${txnId} · $${newTotal} · ${payAmt}`, 'success');
   } catch (err) {
     showNotification('Error', 'Failed to save changes. Please try again.', 'error');
   } finally {
@@ -1608,27 +1854,27 @@ function saleCardTime(ts) {
 function renderReservedSales(items) {
   const el = document.getElementById('reservedSalesList');
   if (items.length === 0) {
-    el.innerHTML = `<div style="padding:40px 0; text-align:center; color:var(--text-dim); font-size:11px">No reserved sales</div>`;
+    el.innerHTML = `<div style="padding:40px 0; text-align:center; color:var(--text-dim); font-size: 13px">No reserved sales</div>`;
     return;
   }
   el.innerHTML = items.map(t => `
     <div style="background:var(--deep); border:1px solid rgba(201,168,76,0.35); border-radius:4px; padding:14px 16px; margin-bottom:10px">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px">
         <div>
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--gold,#c9a84c); letter-spacing:0.08em">${t.id}</div>
-          <div style="font-size:9px; color:var(--text-dim); margin-top:2px">${saleCardTime(t.timestamp)}</div>
+          <div style="font-size: 12px; font-family:'DM Mono',monospace; color:var(--gold,#c9a84c); letter-spacing:0.08em">${t.id}</div>
+          <div style="font-size: 11px; color:var(--text-dim); margin-top:2px">${saleCardTime(t.timestamp)}</div>
         </div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--text-bright)">$${t.total.toFixed(2)}</div>
       </div>
-      <div style="font-size:10px; color:var(--text-dim); line-height:1.6; margin-bottom:12px; border-top:1px solid var(--border); padding-top:8px">${t.description || '—'}</div>
+      <div style="font-size: 12px; color:var(--text-dim); line-height:1.6; margin-bottom:12px; border-top:1px solid var(--border); padding-top:8px">${t.description || '—'}</div>
       <div style="display:flex; gap:8px">
         <button onclick="openFinalizeModal('${t.id}')"
-          style="flex:1; padding:8px; background:rgba(201,168,76,0.12); border:1px solid rgba(201,168,76,0.5); color:var(--gold,#c9a84c); font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.08em; cursor:pointer; border-radius:2px"
+          style="flex:1; padding:8px; background:rgba(201,168,76,0.12); border:1px solid rgba(201,168,76,0.5); color:var(--gold,#c9a84c); font-family:'DM Mono',monospace; font-size: 12px; letter-spacing:0.08em; cursor:pointer; border-radius:2px"
           onmouseover="this.style.background='rgba(201,168,76,0.22)'" onmouseout="this.style.background='rgba(201,168,76,0.12)'">
           ✓ Finalize &amp; Collect
         </button>
         <button onclick="cancelReservedSale('${t.id}', '${(t.description||'').replace(/'/g,"\\'").substring(0,40)}')"
-          style="padding:8px 12px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size:10px; cursor:pointer; border-radius:2px"
+          style="padding:8px 12px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size: 12px; cursor:pointer; border-radius:2px"
           onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">
           ✕
         </button>
@@ -1639,27 +1885,27 @@ function renderReservedSales(items) {
 function renderFinalizedSales(items) {
   const el = document.getElementById('finalizedSalesList');
   if (items.length === 0) {
-    el.innerHTML = `<div style="padding:40px 0; text-align:center; color:var(--text-dim); font-size:11px">No finalized sales yet</div>`;
+    el.innerHTML = `<div style="padding:40px 0; text-align:center; color:var(--text-dim); font-size: 13px">No finalized sales yet</div>`;
     return;
   }
   el.innerHTML = items.map(t => `
     <div style="background:var(--deep); border:1px solid var(--border); border-radius:4px; padding:14px 16px; margin-bottom:10px">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px">
         <div>
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--accent); letter-spacing:0.08em">${t.id}</div>
-          <div style="font-size:9px; color:var(--text-dim); margin-top:2px">${saleCardTime(t.timestamp)}${t.payment_method ? ` · ${t.payment_method}` : ''}</div>
+          <div style="font-size: 12px; font-family:'DM Mono',monospace; color:var(--accent); letter-spacing:0.08em">${t.id}</div>
+          <div style="font-size: 11px; color:var(--text-dim); margin-top:2px">${saleCardTime(t.timestamp)}${t.payment_method ? ` · ${t.payment_method}` : ''}</div>
         </div>
         <div style="font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--text-bright)">$${t.total.toFixed(2)}</div>
       </div>
-      <div style="font-size:10px; color:var(--text-dim); line-height:1.6; border-top:1px solid var(--border); padding-top:8px; margin-bottom:10px">${t.description || '—'}</div>
+      <div style="font-size: 12px; color:var(--text-dim); line-height:1.6; border-top:1px solid var(--border); padding-top:8px; margin-bottom:10px">${t.description || '—'}</div>
       <div style="display:flex; gap:8px">
         <button onclick="openEditSaleModal('${t.id}')"
-          style="flex:1; padding:6px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.06em; cursor:pointer; border-radius:2px"
+          style="flex:1; padding:6px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.06em; cursor:pointer; border-radius:2px"
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">
           ✎ EDIT
         </button>
         <button onclick="deleteFinalizedSale('${t.id}', '${(t.description||'').replace(/'/g,"\\'").substring(0,40)}')"
-          style="flex:1; padding:6px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.06em; cursor:pointer; border-radius:2px"
+          style="flex:1; padding:6px; background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.06em; cursor:pointer; border-radius:2px"
           onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">
           ✕ DELETE
         </button>
@@ -1694,6 +1940,9 @@ function openFinalizeModal(txnId) {
   document.getElementById('finalize-txn-id-display').textContent = t.id;
   document.querySelectorAll('[data-fin-method]').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-fin-method="cash"]').classList.add('active');
+  document.getElementById('finalize-usd').value = '0';
+  document.getElementById('finalize-eur').value = '0';
+  document.getElementById('finalize-tl').value  = '0';
 
   renderFinalizeCart();
   document.getElementById('finalize-modal').style.display = 'flex';
@@ -1711,7 +1960,7 @@ function renderFinalizeCart() {
   const el = document.getElementById('finalize-cart-items');
 
   if (finalizeCartItems.length === 0) {
-    el.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-dim); font-size:11px; border:1px dashed var(--border); border-radius:4px">All items removed</div>`;
+    el.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-dim); font-size: 13px; border:1px dashed var(--border); border-radius:4px">All items removed</div>`;
     document.getElementById('finalize-total-display').textContent = `$0.00`;
     return;
   }
@@ -1726,7 +1975,7 @@ function renderFinalizeCart() {
     return `
     <div class="cart-item" style="border-bottom:1px solid var(--border); margin-bottom:0; padding:10px 0">
       <div class="cart-item-details">
-        <div class="cart-item-name" style="font-size:11px">${name}${details ? `<span style="color:var(--text-dim); font-size:10px"> — ${details}</span>` : ''}</div>
+        <div class="cart-item-name" style="font-size: 13px">${name}${details ? `<span style="color:var(--text-dim); font-size: 12px"> — ${details}</span>` : ''}</div>
         <div class="cart-item-price-edit">
           $<input type="number" class="price-edit-input" value="${item.unitPrice.toFixed(2)}" step="0.01" min="0"
             onblur="updateFinalizeItemPrice(${item.itemId}, this.value)"
@@ -1781,6 +2030,14 @@ async function confirmFinalize() {
   if (!finalizingTxnId) return;
   const txnId  = finalizingTxnId;
   const method = finalizePaymentMethod;
+  const usd = parseFloat(document.getElementById('finalize-usd').value) || 0;
+  const eur = parseFloat(document.getElementById('finalize-eur').value) || 0;
+  const tl  = parseFloat(document.getElementById('finalize-tl').value)  || 0;
+  const currParts = [];
+  if (usd > 0) currParts.push(`(USD ${usd.toFixed(2)})`);
+  if (eur > 0) currParts.push(`(EUR ${eur.toFixed(2)})`);
+  if (tl  > 0) currParts.push(`(TRY ${tl.toFixed(2)})`);
+  const paymentMethodStr = currParts.length ? `${method} ${currParts.join(' ')}` : method;
   const items  = finalizeCartItems.map(i => ({ itemId: i.itemId, quantity: i.quantity, unitPrice: i.unitPrice }));
   const btn    = document.getElementById('finalize-confirm-btn');
   btn.disabled = true;
@@ -1789,17 +2046,20 @@ async function confirmFinalize() {
     const res = await fetch(`/api/transactions/${txnId}/finalize`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentMethod: method, items }),
+      body: JSON.stringify({ paymentMethod: paymentMethodStr, items }),
     });
     if (!res.ok) throw new Error('Server error');
     const txn    = await res.json();
     const newTotal = parseFloat(txn.total).toFixed(2);
+    const payAmt = currParts.length
+      ? [usd > 0 ? `$${usd.toFixed(2)}` : null, eur > 0 ? `€${eur.toFixed(2)}` : null, tl > 0 ? `₺${tl.toFixed(2)}` : null].filter(Boolean).join(' + ')
+      : method;
     closeFinalizeModal();
     await loadAndRenderSales();
     await loadProducts();
     renderPOSProducts();
     await updatePOSStatistics();
-    showNotification('Sale Finalized!', `${txnId} · $${newTotal} · ${method}`, 'success');
+    showNotification('Sale Finalized!', `${txnId} · ${payAmt}`, 'success');
   } catch (err) {
     showNotification('Error', 'Failed to finalize. Please try again.', 'error');
   } finally {

@@ -7,6 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
+const analytics = require('./analytics');
 
 // ── DATA DIRECTORY (persistent volume on Fly.io, project root locally) ────────
 const DATA_DIR   = process.env.DATA_DIR || __dirname;
@@ -265,6 +266,37 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   }
 });
 
+// ── INVENTORY ADJUSTMENT ──────────────────────────────────────────────────────
+
+app.post('/api/inventory/adjust', requireAuth, (req, res) => {
+  const { adjustments } = req.body;
+  if (!Array.isArray(adjustments) || adjustments.length === 0)
+    return res.status(400).json({ error: 'adjustments array required' });
+  try {
+    const doAdjust = db.transaction(() => {
+      for (const adj of adjustments) {
+        const { productId, color, size, channel, delta } = adj;
+        if (!productId || !color || !size || !channel || delta === undefined) continue;
+        const existing = db.get(
+          'SELECT id FROM product_variants WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
+          [productId, color, size, channel]
+        );
+        if (existing) {
+          db.run(
+            'UPDATE product_variants SET stock = MAX(0, stock + ?) WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
+            [delta, productId, color, size, channel]
+          );
+        }
+      }
+    });
+    doAdjust();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ── TRANSACTIONS ──────────────────────────────────────────────────────────────
 
 app.get('/api/transactions', requireAuth, (req, res) => {
@@ -335,7 +367,7 @@ app.delete('/api/transactions/:id', requireAuth, (req, res) => {
           }
         }
       }
-      db.run('DELETE FROM transactions WHERE id = ?', [txn.id]);
+      db.run('DELETE FROM transactions WHERE id = ?', [txn.id]); 
     });
     doDelete();
     res.json({ ok: true });
@@ -693,62 +725,53 @@ app.get('/api/analytics/rankings', requireAuth, (req, res) => {
   }
 });
 
+// Shared helper: fetch weekly history for all products (last N weeks)
+function getWeeklyHistory(weeks = 16) {
+  const rows = db.all(`
+    SELECT ti.product_id,
+           strftime('%Y-%W', t.created_at) AS wk,
+           SUM(ti.quantity)                AS units
+    FROM transaction_items ti
+    JOIN transactions t ON t.id = ti.transaction_id
+    WHERE t.type = 'sale' AND (t.status = 'completed' OR t.status IS NULL)
+      AND t.created_at >= datetime('now', '-${weeks} weeks')
+    GROUP BY ti.product_id, wk
+    ORDER BY ti.product_id, wk
+  `);
+  const history = {};
+  rows.forEach(r => { (history[r.product_id] ??= []).push({ wk: r.wk, units: r.units }); });
+  return history;
+}
+
+// Shared helper: fetch all products with current stock
+function getProductsWithStock() {
+  return db.all(`
+    SELECT p.id, p.name, p.category, p.price,
+           COALESCE(SUM(pv.stock), 0) AS stock
+    FROM products p
+    LEFT JOIN product_variants pv ON pv.product_id = p.id
+    GROUP BY p.id
+  `);
+}
+
+app.get('/api/analytics/production-forecast', requireAuth, (req, res) => {
+  const horizonMap   = { '1w': 1, '2w': 2, '1m': 4, '2m': 8 };
+  const horizonWeeks = horizonMap[req.query.horizon] || 2;
+  try {
+    const products       = getProductsWithStock();
+    const weeklyHistory  = getWeeklyHistory(16);
+    res.json(analytics.computeProductionForecast(products, weeklyHistory, horizonWeeks));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.get('/api/analytics/forecast', requireAuth, (req, res) => {
   try {
-    const products = db.all('SELECT id, name, category, price FROM products ORDER BY id');
-    const weekly   = db.all(`
-      SELECT ti.product_id,
-             strftime('%Y-%W', t.created_at) AS wk,
-             SUM(ti.quantity)                AS units
-      FROM transaction_items ti
-      JOIN transactions t ON t.id = ti.transaction_id
-      WHERE t.type = 'sale' AND (t.status = 'completed' OR t.status IS NULL)
-        AND t.created_at >= datetime('now', '-8 weeks')
-      GROUP BY ti.product_id, wk
-      ORDER BY ti.product_id, wk
-    `);
-
-    const allWeeks  = [...new Set(weekly.map(r => r.wk))].sort();
-    const byProduct = {};
-    weekly.forEach(r => { (byProduct[r.product_id] ??= {})[r.wk] = r.units; });
-
-    function wma(series) {
-      if (!series.length) return 0;
-      let wSum = 0, vSum = 0;
-      series.forEach((v, i) => { const w = i + 1; vSum += v * w; wSum += w; });
-      return wSum ? vSum / wSum : 0;
-    }
-    function linSlope(series) {
-      const n = series.length;
-      if (n < 2) return 0;
-      const xM = (n - 1) / 2;
-      const yM = series.reduce((a, b) => a + b, 0) / n;
-      let num = 0, den = 0;
-      series.forEach((y, i) => { num += (i - xM) * (y - yM); den += (i - xM) ** 2; });
-      return den ? num / den : 0;
-    }
-
-    const results = products.map(p => {
-      const wkData    = byProduct[p.id] || {};
-      const series    = allWeeks.map(wk => wkData[wk] || 0);
-      const base      = wma(series);
-      const sl        = linSlope(series);
-      const projected = [1, 2, 3, 4].map(w => Math.max(0, Math.round(base + sl * w)));
-      const nonZero   = series.filter(v => v > 0).length;
-      return {
-        product_id:      p.id,
-        name:            p.name,
-        category:        p.category,
-        price:           parseFloat(p.price),
-        base_weekly:     Math.round(base * 10) / 10,
-        slope:           Math.round(sl * 100) / 100,
-        projected_4w:    projected,
-        total_projected: projected.reduce((a, b) => a + b, 0),
-        trend:           sl > 0.3 ? 'rising' : sl < -0.3 ? 'declining' : 'stable',
-        confidence:      nonZero >= 4 ? 'high' : nonZero >= 2 ? 'medium' : 'low',
-      };
-    });
-    res.json(results.sort((a, b) => b.total_projected - a.total_projected));
+    const products      = getProductsWithStock();
+    const weeklyHistory = getWeeklyHistory(12);
+    res.json(analytics.computeDemandForecast(products, weeklyHistory));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
