@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 const analytics = require('./analytics');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // ── DATA DIRECTORY (persistent volume on Fly.io, project root locally) ────────
 const DATA_DIR   = process.env.DATA_DIR || __dirname;
@@ -802,6 +803,582 @@ app.get('/api/analytics/color-breakdown', requireAuth, (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── CHAT AGENT ────────────────────────────────────────────────────────────────
+
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
+
+const CHAT_SYSTEM_PROMPT = `You are a sharp, experienced data analyst for haniqa — a fashion retail business.
+You have live tools to query the database. Today's date is ${new Date().toDateString()}.
+
+## How to think and respond
+
+**Always pull data before answering** — but never stop at one tool. A good analyst triangulates.
+Call multiple tools in a single turn whenever a fuller picture helps. Gemini supports parallel tool calls.
+
+**When a tool returns empty or zero results, do NOT say "no data available" and stop.**
+Instead: pivot, try related tools, and reason from whatever you can find. Examples:
+- Production forecast empty? → check get_low_stock_products + get_product_rankings + get_recent_transactions and synthesize your own recommendation.
+- No sales today? → check last_7_days, mention it's a slow day, give context from recent trends.
+- No color data? → fall back to product-level rankings and say so.
+
+**Reason like an analyst, not a database.**
+Combine signals: if a product has low stock AND high sell-through AND rising demand, say "prioritize this".
+If a product has high stock AND declining sales, say "hold off on production".
+You are allowed — encouraged — to form opinions and recommendations from the data.
+
+**Answering "what should I produce next?" or production questions:**
+1. Call get_production_forecast first.
+2. Also call get_low_stock_products and get_product_rankings in the same turn.
+3. Combine all three: prioritize products that are low stock, high sell-through, and/or high demand.
+4. Give a clear ranked recommendation even if the forecast model has insufficient history.
+
+**Format rules:**
+- Lead with the key insight or recommendation, then back it with numbers.
+- Use bullet lists for ranked items. Bold the most important figures.
+- Use percentages and currency where relevant.
+- Be concise — one clear answer, not a list of caveats.
+- If something is genuinely unknown (no products exist yet, no transactions ever), say so plainly in one sentence.`;
+
+const CHAT_TOOLS = [
+  {
+    name: 'get_business_overview',
+    description: 'Returns overall KPIs: total revenue, total units sold, today\'s sales, active SKU count, and low-stock item count.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        channel: {
+          type: 'STRING',
+          description: 'Sales channel filter: "both", "wholesale", or "single". Defaults to "both".',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_top_sellers',
+    description: 'Returns the top 8 products ranked by units sold, with revenue and stock levels.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        channel: {
+          type: 'STRING',
+          description: 'Sales channel filter: "both", "wholesale", or "single". Defaults to "both".',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_monthly_sales',
+    description: 'Returns monthly revenue (in thousands) and units sold for the last 12 months.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_product_rankings',
+    description: 'Returns all products ranked by total units sold, with sell-through rate and current stock.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_production_forecast',
+    description: 'Returns production recommendations for each product: suggested quantity to produce, trend direction, priority level, and days of stock remaining. Based on weighted moving average of recent sales.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        horizon: {
+          type: 'STRING',
+          description: 'Planning horizon: "1w" (1 week), "2w" (2 weeks), "1m" (1 month), "2m" (2 months). Defaults to "2w".',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_demand_forecast',
+    description: 'Returns a 4-week demand forecast for all products using weighted moving average and linear trend projection.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_color_breakdown',
+    description: 'Returns units sold and sell-through rate broken down by product, color, and channel.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_sales_by_period',
+    description: 'Returns total revenue, units sold, and transaction count for a specific time period, plus a per-product breakdown of what was sold. Use this for questions like "today\'s sales", "this week\'s sales", "latest sales", "what did we sell yesterday".',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        period: {
+          type: 'STRING',
+          description: 'Time period: "today", "yesterday", "last_7_days", "this_month", "last_30_days", "last_month". Defaults to "today".',
+        },
+        channel: {
+          type: 'STRING',
+          description: 'Sales channel filter: "both", "wholesale", or "single". Defaults to "both".',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_recent_transactions',
+    description: 'Returns the most recent individual sales transactions with a full itemized breakdown: which products were sold, quantity, unit price, and total. Use for "show me recent orders", "last sales", "what was sold today in detail".',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        period: {
+          type: 'STRING',
+          description: 'Optional filter: "today", "yesterday", "last_7_days". Leave empty for most recent regardless of date.',
+        },
+        limit: {
+          type: 'NUMBER',
+          description: 'Number of transactions to return. Defaults to 15, max 50.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_low_stock_products',
+    description: 'Returns all products with stock below a threshold, sorted by most critical first. Includes exact stock count, units sold, and sell-through rate. Use for "low stock", "what needs restocking", "inventory alerts".',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        threshold: {
+          type: 'NUMBER',
+          description: 'Stock level below which a product is considered low. Defaults to 20.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_product_detail',
+    description: 'Returns a full detail view of a specific product by name: current stock broken down by color, size, and channel; total units sold; total revenue; sell-through rate. Use when the manager asks about a specific product.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        product_name: {
+          type: 'STRING',
+          description: 'Product name or partial name to search for (case-insensitive).',
+        },
+      },
+      required: ['product_name'],
+    },
+  },
+  {
+    name: 'get_category_performance',
+    description: 'Returns revenue, units sold, product count, and average sell-through rate broken down by product category (tops, bottoms, outerwear, accessories). Use for "how are my categories doing", "which category sells best".',
+    parameters: {
+      type: 'OBJECT',
+      properties: {},
+      required: [],
+    },
+  },
+];
+
+function executeChatTool(name, args) {
+  const channel = (args && args.channel) || 'both';
+
+  switch (name) {
+    case 'get_business_overview': {
+      const totals = db.get(`
+        SELECT COALESCE(SUM(ti.quantity * ti.unit_price),0) AS total_revenue,
+               COALESCE(SUM(ti.quantity),0)                AS total_units
+        FROM transaction_items ti
+        JOIN transactions t ON t.id = ti.transaction_id
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          AND (? = 'both' OR ti.channel = ?)
+      `, [channel, channel]);
+      const today = db.get(`
+        SELECT COALESCE(SUM(ti.quantity * ti.unit_price),0) AS today_sales,
+               COUNT(DISTINCT t.id)                         AS today_txns
+        FROM transaction_items ti
+        JOIN transactions t ON t.id = ti.transaction_id
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          AND date(t.created_at)=date('now')
+          AND (? = 'both' OR ti.channel = ?)
+      `, [channel, channel]);
+      const counts = db.get(`
+        SELECT COUNT(*) AS active_skus,
+          COALESCE((SELECT COUNT(*) FROM (
+            SELECT product_id FROM product_variants
+            WHERE (? = 'both' OR channel = ?)
+            GROUP BY product_id HAVING SUM(stock) < 20
+          )),0) AS low_stock_count
+        FROM products
+      `, [channel, channel]);
+      return { channel, ...totals, ...today, ...counts };
+    }
+
+    case 'get_top_sellers': {
+      return db.all(`
+        SELECT p.name, p.ref, p.category, p.price,
+          COALESCE(cs.sold,0)          AS sold,
+          COALESCE(cs.revenue_total,0) AS revenue_total,
+          COALESCE(ck.stock,0)         AS stock
+        FROM products p
+        LEFT JOIN (
+          SELECT ti.product_id, SUM(ti.quantity) AS sold,
+                 SUM(ti.quantity * ti.unit_price) AS revenue_total
+          FROM transaction_items ti
+          JOIN transactions t ON t.id = ti.transaction_id
+          WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+            AND (? = 'both' OR ti.channel = ?)
+          GROUP BY ti.product_id
+        ) cs ON cs.product_id = p.id
+        LEFT JOIN (
+          SELECT product_id, SUM(stock) AS stock
+          FROM product_variants
+          WHERE (? = 'both' OR channel = ?)
+          GROUP BY product_id
+        ) ck ON ck.product_id = p.id
+        ORDER BY sold DESC LIMIT 8
+      `, [channel, channel, channel, channel]);
+    }
+
+    case 'get_monthly_sales': {
+      const rows = db.all(`
+        SELECT strftime('%Y-%m', t.created_at) AS ym,
+               strftime('%b',   t.created_at)  AS month,
+               ROUND(COALESCE(SUM(ti.quantity * ti.unit_price),0)/1000.0,1) AS revenue_k,
+               COALESCE(SUM(ti.quantity),0)                                 AS units
+        FROM transactions t
+        JOIN transaction_items ti ON ti.transaction_id = t.id
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          AND t.created_at >= datetime('now','-12 months')
+        GROUP BY ym ORDER BY ym ASC
+      `);
+      return rows;
+    }
+
+    case 'get_product_rankings': {
+      const rows = db.all(`
+        SELECT p.name, p.category, p.price,
+          COALESCE(SUM(ti.quantity),0) AS sold,
+          COALESCE((SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id=p.id),0) AS stock
+        FROM products p
+        LEFT JOIN transaction_items ti ON ti.product_id=p.id
+        LEFT JOIN transactions t ON t.id=ti.transaction_id AND t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+        GROUP BY p.id ORDER BY sold DESC
+      `);
+      return rows.map(r => ({
+        ...r,
+        sell_through_pct: r.sold + r.stock > 0
+          ? Math.round(r.sold / (r.sold + r.stock) * 100) : 0,
+      }));
+    }
+
+    case 'get_production_forecast': {
+      const horizonMap   = { '1w': 1, '2w': 2, '1m': 4, '2m': 8 };
+      const horizonWeeks = horizonMap[args && args.horizon] || 2;
+      const products     = getProductsWithStock();
+      const history      = getWeeklyHistory(16);
+      return analytics.computeProductionForecast(products, history, horizonWeeks);
+    }
+
+    case 'get_demand_forecast': {
+      const products = getProductsWithStock();
+      const history  = getWeeklyHistory(12);
+      return analytics.computeDemandForecast(products, history);
+    }
+
+    case 'get_color_breakdown': {
+      const sales = db.all(`
+        SELECT p.name AS product_name, ti.color, ti.channel,
+               SUM(ti.quantity)                 AS sold,
+               SUM(ti.quantity * ti.unit_price) AS revenue
+        FROM transaction_items ti
+        JOIN transactions t ON t.id=ti.transaction_id
+        JOIN products p ON p.id=ti.product_id
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          AND ti.color IS NOT NULL AND ti.color != ''
+        GROUP BY ti.product_id, ti.color, ti.channel
+      `);
+      const stock = db.all(`
+        SELECT p.name AS product_name, pv.color, pv.channel, SUM(pv.stock) AS stock
+        FROM product_variants pv
+        JOIN products p ON p.id=pv.product_id
+        WHERE pv.color IS NOT NULL AND pv.color != ''
+        GROUP BY pv.product_id, pv.color, pv.channel
+      `);
+      const sm = {};
+      stock.forEach(r => { sm[`${r.product_name}|${r.color}|${r.channel}`] = r.stock; });
+      return sales.map(r => ({
+        ...r,
+        stock: sm[`${r.product_name}|${r.color}|${r.channel}`] || 0,
+        sell_through_pct: r.sold + (sm[`${r.product_name}|${r.color}|${r.channel}`] || 0) > 0
+          ? Math.round(r.sold / (r.sold + (sm[`${r.product_name}|${r.color}|${r.channel}`] || 0)) * 100) : 0,
+      }));
+    }
+
+    case 'get_sales_by_period': {
+      const period  = (args && args.period) || 'today';
+      const ch      = (args && args.channel) || 'both';
+      const periodConditions = {
+        today:        `date(t.created_at) = date('now')`,
+        yesterday:    `date(t.created_at) = date('now', '-1 day')`,
+        last_7_days:  `t.created_at >= datetime('now', '-7 days')`,
+        this_month:   `strftime('%Y-%m', t.created_at) = strftime('%Y-%m', 'now')`,
+        last_30_days: `t.created_at >= datetime('now', '-30 days')`,
+        last_month:   `strftime('%Y-%m', t.created_at) = strftime('%Y-%m', date('now', '-1 month'))`,
+      };
+      const dateCond = periodConditions[period] || periodConditions.today;
+
+      const summary = db.get(`
+        SELECT COALESCE(SUM(ti.quantity * ti.unit_price), 0) AS total_revenue,
+               COALESCE(SUM(ti.quantity), 0)                 AS total_units,
+               COUNT(DISTINCT t.id)                          AS transaction_count
+        FROM transaction_items ti
+        JOIN transactions t ON t.id = ti.transaction_id
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          AND ${dateCond}
+          AND (? = 'both' OR ti.channel = ?)
+      `, [ch, ch]);
+
+      const products = db.all(`
+        SELECT p.name, p.category, ti.channel,
+               SUM(ti.quantity)                 AS units_sold,
+               SUM(ti.quantity * ti.unit_price) AS revenue
+        FROM transaction_items ti
+        JOIN transactions t ON t.id = ti.transaction_id
+        JOIN products p ON p.id = ti.product_id
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          AND ${dateCond}
+          AND (? = 'both' OR ti.channel = ?)
+        GROUP BY ti.product_id, ti.channel
+        ORDER BY units_sold DESC
+      `, [ch, ch]);
+
+      return { period, channel: ch, ...summary, products };
+    }
+
+    case 'get_recent_transactions': {
+      const period = args && args.period;
+      const limit  = Math.min(parseInt((args && args.limit) || 15), 50);
+      const periodConditions = {
+        today:       `AND date(t.created_at) = date('now')`,
+        yesterday:   `AND date(t.created_at) = date('now', '-1 day')`,
+        last_7_days: `AND t.created_at >= datetime('now', '-7 days')`,
+      };
+      const dateCond = periodConditions[period] || '';
+
+      const txns = db.all(`
+        SELECT t.id, t.created_at, t.total, t.payment_method, t.description
+        FROM transactions t
+        WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          ${dateCond}
+        ORDER BY t.created_at DESC
+        LIMIT ?
+      `, [limit]);
+
+      const txnIds = txns.map(t => t.id);
+      if (!txnIds.length) return { transactions: [] };
+
+      const items = db.all(`
+        SELECT ti.transaction_id, p.name AS product_name, p.category,
+               ti.color, ti.size, ti.channel, ti.quantity, ti.unit_price,
+               ti.quantity * ti.unit_price AS line_total
+        FROM transaction_items ti
+        JOIN products p ON p.id = ti.product_id
+        WHERE ti.transaction_id IN (${txnIds.map(() => '?').join(',')})
+        ORDER BY ti.transaction_id, p.name
+      `, txnIds);
+
+      const itemsByTxn = {};
+      items.forEach(i => {
+        (itemsByTxn[i.transaction_id] ??= []).push(i);
+      });
+
+      return {
+        transactions: txns.map(t => ({
+          ...t,
+          items: itemsByTxn[t.id] || [],
+        })),
+      };
+    }
+
+    case 'get_low_stock_products': {
+      const threshold = parseInt((args && args.threshold) || 20);
+      const rows = db.all(`
+        SELECT p.name, p.category, p.price,
+               COALESCE(SUM(pv.stock), 0) AS total_stock,
+               COALESCE(s.sold, 0)         AS total_sold
+        FROM products p
+        LEFT JOIN product_variants pv ON pv.product_id = p.id
+        LEFT JOIN (
+          SELECT ti.product_id, SUM(ti.quantity) AS sold
+          FROM transaction_items ti
+          JOIN transactions t ON t.id = ti.transaction_id
+          WHERE t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+          GROUP BY ti.product_id
+        ) s ON s.product_id = p.id
+        GROUP BY p.id
+        HAVING total_stock < ?
+        ORDER BY total_stock ASC
+      `, [threshold]);
+
+      return rows.map(r => ({
+        ...r,
+        sell_through_pct: r.total_sold + r.total_stock > 0
+          ? Math.round(r.total_sold / (r.total_sold + r.total_stock) * 100) : 0,
+      }));
+    }
+
+    case 'get_product_detail': {
+      const search = (args && args.product_name) || '';
+      const products = db.all(`
+        SELECT p.id, p.name, p.ref, p.category, p.price, p.wholesale_price, p.status, p.season
+        FROM products p
+        WHERE p.name LIKE ?
+        LIMIT 3
+      `, [`%${search}%`]);
+
+      if (!products.length) return { error: `No product found matching "${search}"` };
+
+      return products.map(p => {
+        const variants = db.all(`
+          SELECT color, size, channel, stock
+          FROM product_variants
+          WHERE product_id = ?
+          ORDER BY channel, color, size
+        `, [p.id]);
+
+        const sales = db.get(`
+          SELECT COALESCE(SUM(ti.quantity), 0)                 AS total_sold,
+                 COALESCE(SUM(ti.quantity * ti.unit_price), 0) AS total_revenue
+          FROM transaction_items ti
+          JOIN transactions t ON t.id = ti.transaction_id
+          WHERE ti.product_id = ? AND t.type='sale'
+            AND (t.status='completed' OR t.status IS NULL)
+        `, [p.id]);
+
+        const totalStock = variants.reduce((s, v) => s + v.stock, 0);
+        const sellThrough = sales.total_sold + totalStock > 0
+          ? Math.round(sales.total_sold / (sales.total_sold + totalStock) * 100) : 0;
+
+        const colorSummary = {};
+        variants.forEach(v => {
+          const key = `${v.color} (${v.channel})`;
+          colorSummary[key] = (colorSummary[key] || 0) + v.stock;
+        });
+
+        return {
+          ...p,
+          total_stock: totalStock,
+          ...sales,
+          sell_through_pct: sellThrough,
+          stock_by_color_channel: colorSummary,
+          variants,
+        };
+      });
+    }
+
+    case 'get_category_performance': {
+      const rows = db.all(`
+        SELECT p.category,
+               COUNT(DISTINCT p.id)                               AS product_count,
+               COALESCE(SUM(ti.quantity), 0)                      AS total_units,
+               COALESCE(SUM(ti.quantity * ti.unit_price), 0)      AS total_revenue,
+               COALESCE(SUM(pv.stock), 0)                         AS total_stock
+        FROM products p
+        LEFT JOIN transaction_items ti ON ti.product_id = p.id
+        LEFT JOIN transactions t ON t.id = ti.transaction_id
+          AND t.type='sale' AND (t.status='completed' OR t.status IS NULL)
+        LEFT JOIN product_variants pv ON pv.product_id = p.id
+        GROUP BY p.category
+        ORDER BY total_revenue DESC
+      `);
+      return rows.map(r => ({
+        ...r,
+        sell_through_pct: r.total_units + r.total_stock > 0
+          ? Math.round(r.total_units / (r.total_units + r.total_stock) * 100) : 0,
+      }));
+    }
+
+    default:
+      return { error: `Unknown tool: ${name}` };
+  }
+}
+
+app.post('/api/chat', requireAuth, async (req, res) => {
+  if (!genAI) {
+    return res.status(503).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+  }
+
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || !messages.length) {
+    return res.status(400).json({ error: 'messages array required' });
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: CHAT_SYSTEM_PROMPT,
+      tools: [{ functionDeclarations: CHAT_TOOLS }],
+      toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
+    });
+
+    // Split history (all but last) from the current user message
+    const history    = messages.slice(0, -1);
+    const lastMsg    = messages[messages.length - 1];
+    const userText   = lastMsg.parts?.[0]?.text || '';
+
+    const chat     = model.startChat({ history });
+    let response   = await chat.sendMessage(userText);
+
+    // Agentic loop — Gemini may request multiple tool calls before replying
+    let iterations = 0;
+    while (iterations < 8) {
+      const calls = response.response.functionCalls();
+      if (!calls || !calls.length) break;
+      iterations++;
+
+      const toolResults = calls.map(call => {
+        let result;
+        try {
+          result = executeChatTool(call.name, call.args);
+        } catch (err) {
+          result = { error: err.message };
+        }
+        return {
+          functionResponse: {
+            name: call.name,
+            response: { result },
+          },
+        };
+      });
+
+      response = await chat.sendMessage(toolResults);
+    }
+
+    const replyText = response.response.text();
+    res.json({ reply: replyText });
+
+  } catch (err) {
+    console.error('Chat agent error:', err);
+    res.status(500).json({ error: err.message || 'Chat agent failed' });
   }
 });
 

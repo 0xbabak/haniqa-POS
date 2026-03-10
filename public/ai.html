@@ -53,6 +53,98 @@
     min-width: 4px;
   }
 
+  /* Suggestion chips */
+  .chip-btn {
+    padding: 7px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .chip-btn:hover { border-color: var(--pink-dim); color: var(--text); }
+
+  /* Chat bubbles */
+  .bubble-user {
+    align-self: flex-end;
+    background: rgba(194,0,94,0.1);
+    border: 1px solid rgba(194,0,94,0.25);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 2px 2px 0 2px;
+    font-size: 13px;
+    max-width: 72%;
+    line-height: 1.55;
+    font-family: 'DM Mono', monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble-assistant {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px 16px;
+    border-radius: 2px 2px 2px 0;
+    font-size: 13px;
+    max-width: 88%;
+    line-height: 1.7;
+    word-break: break-word;
+  }
+  .bubble-assistant strong { color: var(--text-bright); font-weight: 600; }
+  .bubble-assistant ul, .bubble-assistant ol {
+    padding-left: 18px;
+    margin: 6px 0;
+  }
+  .bubble-assistant li { margin-bottom: 3px; }
+  .bubble-assistant table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 12px;
+  }
+  .bubble-assistant th {
+    border-bottom: 1px solid var(--border);
+    padding: 5px 10px;
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+  .bubble-assistant td {
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  /* Typing indicator */
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px 2px 2px 0;
+    align-self: flex-start;
+  }
+  .typing-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--pink);
+    animation: typingPulse 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingPulse {
+    0%, 60%, 100% { opacity: 0.2; transform: scale(0.9); }
+    30% { opacity: 1; transform: scale(1.1); }
+  }
+
   /* Horizon selector */
   .horizon-btn {
     padding: 6px 13px;
@@ -295,39 +387,66 @@
     <div class="section-head">
       <div class="section-title">Chat with AI</div>
       <div class="section-line"></div>
-      <div class="section-meta">Your intelligent fashion business assistant</div>
+      <div class="section-meta">Your intelligent fashion business analyst</div>
     </div>
 
-    <div style="max-width:1200px; margin:0 auto">
-      <div style="background:var(--deep); border:1px solid var(--border); border-radius:4px; overflow:hidden">
-        <div style="padding:20px; border-bottom:1px solid var(--border); background:var(--black)">
-          <div style="display:flex; align-items:center; gap:12px">
-            <div style="width:40px; height:40px; background:linear-gradient(135deg,var(--pink-dim),var(--pink)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px">✨</div>
-            <div>
-              <div style="font-size:14px; color:var(--text-bright); font-weight:500">haniqa AI Assistant</div>
-              <div style="font-size: 12px; color:var(--text-dim); letter-spacing:0.05em">Powered by advanced language models</div>
-            </div>
+    <div style="max-width:900px; margin:0 auto; display:flex; flex-direction:column; height:calc(100vh - 180px); min-height:500px">
+
+      <!-- Header bar -->
+      <div style="padding:16px 20px; border:1px solid var(--border); border-bottom:none; background:var(--black); border-radius:2px 2px 0 0; flex-shrink:0">
+        <div style="display:flex; align-items:center; gap:12px">
+          <div style="width:34px; height:34px; background:linear-gradient(135deg,var(--pink-dim),var(--pink)); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="#fff" stroke-width="1.2"/>
+              <path d="M5 8h6M8 5v6" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
           </div>
-        </div>
-        <div style="padding:32px; min-height:400px; max-height:500px; overflow-y:auto" id="ai-chat-messages">
-          <div style="text-align:center; padding:60px 20px; color:var(--text-dim)">
-            <div style="font-size:48px; margin-bottom:16px; opacity:0.3">💬</div>
-            <h4 style="font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--text-bright); margin-bottom:12px; font-weight:300">Start a Conversation</h4>
-            <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:24px">
-              <div class="badge good" style="cursor:pointer; padding:6px 12px">"What should I produce for summer?"</div>
-              <div class="badge good" style="cursor:pointer; padding:6px 12px">"Show me my best sellers"</div>
-              <div class="badge good" style="cursor:pointer; padding:6px 12px">"Analyze my inventory health"</div>
-            </div>
+          <div style="flex:1">
+            <div style="font-size:13px; color:var(--text-bright); letter-spacing:0.04em">haniqa analyst</div>
+            <div style="font-size:11px; color:var(--text-dim); letter-spacing:0.04em" id="chat-status-label">Powered by Gemini · live data access</div>
           </div>
-        </div>
-        <div style="padding:20px; border-top:1px solid var(--border); background:var(--black)">
-          <div style="display:flex; gap:12px; align-items:center">
-            <input type="text" placeholder="Ask me anything about your fashion business…" style="flex:1; background:var(--surface); border:1px solid var(--border); color:var(--text); padding:12px 16px; font-family:'DM Mono',monospace; font-size:12px; outline:none; border-radius:4px" disabled>
-            <button class="btn-primary" style="opacity:0.5; cursor:not-allowed" disabled>Send</button>
-          </div>
-          <div style="margin-top:12px; font-size: 12px; color:var(--text-dim); text-align:center">Coming soon with LLM integration</div>
+          <button onclick="clearChat()" style="padding:4px 10px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; transition:all 0.15s"
+            onmouseover="this.style.borderColor='var(--pink-dim)';this.style.color='var(--pink)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">Clear</button>
         </div>
       </div>
+
+      <!-- Messages area -->
+      <div id="ai-chat-messages" style="flex:1; overflow-y:auto; border:1px solid var(--border); border-top:none; border-bottom:none; background:var(--deep); padding:20px; display:flex; flex-direction:column; gap:16px">
+
+        <!-- Welcome state -->
+        <div id="chat-welcome" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 20px; color:var(--text-dim)">
+          <div style="font-family:'Cormorant Garamond',serif; font-size:22px; color:var(--text-bright); font-weight:300; margin-bottom:8px">Ask me anything about your business</div>
+          <div style="font-size:12px; color:var(--text-dim); margin-bottom:28px">I have live access to your sales, inventory, and forecasts.</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:560px">
+            <button class="chip-btn" onclick="fillPrompt('What should I produce next?')">What should I produce next?</button>
+            <button class="chip-btn" onclick="fillPrompt('Show me my top selling products')">Top selling products</button>
+            <button class="chip-btn" onclick="fillPrompt('Which products are running low on stock?')">Low stock alerts</button>
+            <button class="chip-btn" onclick="fillPrompt('How are sales trending this month?')">Sales trend this month</button>
+            <button class="chip-btn" onclick="fillPrompt('What is the demand forecast for the next 4 weeks?')">4-week demand forecast</button>
+            <button class="chip-btn" onclick="fillPrompt('Which colors are selling best?')">Best performing colors</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Input bar -->
+      <div style="padding:14px 16px; border:1px solid var(--border); border-top:1px solid var(--border); background:var(--black); border-radius:0 0 2px 2px; flex-shrink:0">
+        <div style="display:flex; gap:10px; align-items:flex-end">
+          <textarea id="chat-input"
+            placeholder="Ask about sales, inventory, forecasts, or production…"
+            rows="1"
+            style="flex:1; background:var(--surface); border:1px solid var(--border); color:var(--text); padding:10px 14px; font-family:'DM Mono',monospace; font-size:12px; outline:none; border-radius:2px; resize:none; line-height:1.5; transition:border-color 0.15s; max-height:120px; overflow-y:auto"
+            onkeydown="handleInputKey(event)"
+            oninput="autoResizeTextarea(this)"
+            onfocus="this.style.borderColor='var(--pink-dim)'"
+            onblur="this.style.borderColor='var(--border)'"></textarea>
+          <button id="chat-send-btn" onclick="sendChatMessage()"
+            style="padding:10px 18px; font-family:'DM Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; background:var(--pink); border:none; color:#fff; cursor:pointer; border-radius:2px; flex-shrink:0; transition:opacity 0.15s; white-space:nowrap; align-self:flex-end">Send</button>
+        </div>
+        <div style="font-size:10px; color:var(--text-dim); margin-top:8px; letter-spacing:0.06em">Enter to send · Shift+Enter for new line</div>
+      </div>
+
     </div>
   </div><!-- /page-ai-chat -->
 
@@ -418,83 +537,6 @@ function showLoading(...ids) {
 
 const HORIZON_LABELS = { '1w': '1 week', '2w': '2 weeks', '1m': '1 month', '2m': '2 months' };
 
-const DUMMY_PRODUCTION = [
-  { id:'d1',  name:'Silk Slip Dress',          category:'tops',        current_stock:2,   days_of_stock:1,  suggested_production:38, forecast_total:35, safety_stock:3,  trend:'rising',    confidence:'high',   wma_weekly:22.4, weeks_of_data:12, priority:'urgent', priority_order:0 },
-  { id:'d12', name:'Leather Belt',             category:'accessories', current_stock:3,   days_of_stock:2,  suggested_production:44, forecast_total:40, safety_stock:4,  trend:'stable',    confidence:'high',   wma_weekly:18.6, weeks_of_data:10, priority:'urgent', priority_order:0 },
-  { id:'d2',  name:'Ribbed Knit Crop Top',     category:'tops',        current_stock:5,   days_of_stock:4,  suggested_production:52, forecast_total:48, safety_stock:4,  trend:'rising',    confidence:'high',   wma_weekly:28.1, weeks_of_data:11, priority:'high',   priority_order:1 },
-  { id:'d5',  name:'Wide Leg Palazzo Trouser', category:'bottoms',     current_stock:8,   days_of_stock:5,  suggested_production:34, forecast_total:30, safety_stock:4,  trend:'rising',    confidence:'high',   wma_weekly:16.8, weeks_of_data:9,  priority:'high',   priority_order:1 },
-  { id:'d11', name:'Woven Tote Bag',           category:'accessories', current_stock:12,  days_of_stock:6,  suggested_production:61, forecast_total:56, safety_stock:5,  trend:'rising',    confidence:'high',   wma_weekly:34.2, weeks_of_data:12, priority:'high',   priority_order:1 },
-  { id:'d7',  name:'Linen Maxi Skirt',         category:'bottoms',     current_stock:7,   days_of_stock:9,  suggested_production:28, forecast_total:25, safety_stock:3,  trend:'stable',    confidence:'medium', wma_weekly:11.9, weeks_of_data:7,  priority:'medium', priority_order:2 },
-  { id:'d9',  name:'Oversized Linen Blazer',   category:'outerwear',   current_stock:23,  days_of_stock:11, suggested_production:22, forecast_total:18, safety_stock:4,  trend:'declining', confidence:'high',   wma_weekly:14.4, weeks_of_data:10, priority:'medium', priority_order:2 },
-  { id:'d6',  name:'Tailored Bermuda Short',   category:'bottoms',     current_stock:19,  days_of_stock:16, suggested_production:15, forecast_total:12, safety_stock:3,  trend:'stable',    confidence:'medium', wma_weekly:8.2,  weeks_of_data:6,  priority:'medium', priority_order:2 },
-  { id:'d3',  name:'Draped Midi Dress',        category:'tops',        current_stock:31,  days_of_stock:18, suggested_production:12, forecast_total:10, safety_stock:2,  trend:'rising',    confidence:'medium', wma_weekly:12.0, weeks_of_data:5,  priority:'medium', priority_order:2 },
-  { id:'d10', name:'Cotton Utility Jacket',    category:'outerwear',   current_stock:41,  days_of_stock:22, suggested_production:8,  forecast_total:6,  safety_stock:2,  trend:'declining', confidence:'medium', wma_weekly:12.8, weeks_of_data:8,  priority:'low',    priority_order:3 },
-];
-
-// ── DEMO DATA (used when no real sales data exists yet) ──────────────────────
-const DUMMY_PRODUCTS = [
-  { id:'d1',  name:'Silk Slip Dress',           category:'tops',        price:'285', sold:156, stock:2  },
-  { id:'d2',  name:'Ribbed Knit Crop Top',       category:'tops',        price:'95',  sold:203, stock:5  },
-  { id:'d3',  name:'Draped Midi Dress',          category:'tops',        price:'340', sold:92,  stock:31 },
-  { id:'d4',  name:'Knit Cardigan',              category:'tops',        price:'165', sold:31,  stock:55 },
-  { id:'d5',  name:'Wide Leg Palazzo Trouser',   category:'bottoms',     price:'195', sold:124, stock:8  },
-  { id:'d6',  name:'Tailored Bermuda Short',     category:'bottoms',     price:'135', sold:67,  stock:19 },
-  { id:'d7',  name:'Linen Maxi Skirt',           category:'bottoms',     price:'175', sold:89,  stock:7  },
-  { id:'d8',  name:'Cargo Trousers',             category:'bottoms',     price:'155', sold:14,  stock:62 },
-  { id:'d9',  name:'Oversized Linen Blazer',     category:'outerwear',   price:'420', sold:87,  stock:23 },
-  { id:'d10', name:'Cotton Utility Jacket',      category:'outerwear',   price:'355', sold:45,  stock:41 },
-  { id:'d11', name:'Woven Tote Bag',             category:'accessories', price:'125', sold:234, stock:12 },
-  { id:'d12', name:'Leather Belt',               category:'accessories', price:'85',  sold:178, stock:3  },
-];
-
-const DUMMY_COLOR_DATA = [
-  { product_id:'d1',  color:'IVORY',       channel:'single',    sold:72,  stock:1  },
-  { product_id:'d1',  color:'BLACK',       channel:'single',    sold:84,  stock:1  },
-  { product_id:'d2',  color:'WHITE',       channel:'single',    sold:98,  stock:2  },
-  { product_id:'d2',  color:'CAMEL',       channel:'single',    sold:67,  stock:2  },
-  { product_id:'d2',  color:'NAVY BLUE',   channel:'single',    sold:38,  stock:1  },
-  { product_id:'d3',  color:'TERRACOTTA',  channel:'single',    sold:51,  stock:18 },
-  { product_id:'d3',  color:'SAGE GREEN',  channel:'single',    sold:41,  stock:13 },
-  { product_id:'d4',  color:'OATMEAL',     channel:'single',    sold:12,  stock:28 },
-  { product_id:'d4',  color:'CHARCOAL',    channel:'single',    sold:10,  stock:16 },
-  { product_id:'d4',  color:'DUSTY ROSE',  channel:'single',    sold:9,   stock:11 },
-  { product_id:'d5',  color:'BLACK',       channel:'wholesale', sold:58,  stock:4  },
-  { product_id:'d5',  color:'ECRU',        channel:'wholesale', sold:42,  stock:2  },
-  { product_id:'d5',  color:'COBALT',      channel:'single',    sold:24,  stock:2  },
-  { product_id:'d6',  color:'KHAKI',       channel:'single',    sold:34,  stock:11 },
-  { product_id:'d6',  color:'WHITE',       channel:'single',    sold:20,  stock:5  },
-  { product_id:'d6',  color:'NAVY BLUE',   channel:'wholesale', sold:13,  stock:3  },
-  { product_id:'d7',  color:'SAND',        channel:'single',    sold:47,  stock:4  },
-  { product_id:'d7',  color:'OLIVE',       channel:'single',    sold:28,  stock:2  },
-  { product_id:'d7',  color:'WHITE',       channel:'wholesale', sold:14,  stock:1  },
-  { product_id:'d8',  color:'ARMY GREEN',  channel:'single',    sold:8,   stock:34 },
-  { product_id:'d8',  color:'BLACK',       channel:'single',    sold:6,   stock:28 },
-  { product_id:'d9',  color:'ECRU',        channel:'wholesale', sold:42,  stock:12 },
-  { product_id:'d9',  color:'CHARCOAL',    channel:'wholesale', sold:28,  stock:7  },
-  { product_id:'d9',  color:'CAMEL',       channel:'single',    sold:17,  stock:4  },
-  { product_id:'d10', color:'KHAKI',       channel:'wholesale', sold:28,  stock:23 },
-  { product_id:'d10', color:'BLACK',       channel:'wholesale', sold:17,  stock:18 },
-  { product_id:'d11', color:'NATURAL',     channel:'single',    sold:112, stock:6  },
-  { product_id:'d11', color:'BLACK',       channel:'single',    sold:78,  stock:4  },
-  { product_id:'d11', color:'TERRACOTTA',  channel:'single',    sold:44,  stock:2  },
-  { product_id:'d12', color:'TAN',         channel:'single',    sold:98,  stock:2  },
-  { product_id:'d12', color:'BLACK',       channel:'single',    sold:80,  stock:1  },
-];
-
-const DUMMY_FORECAST = [
-  { product_id:'d11', name:'Woven Tote Bag',           category:'accessories', price:125, base_weekly:15.2, slope:1.8,  projected_4w:[17,19,21,23], total_projected:80, trend:'rising',   confidence:'high'   },
-  { product_id:'d2',  name:'Ribbed Knit Crop Top',      category:'tops',        price:95,  base_weekly:13.1, slope:2.3,  projected_4w:[15,17,19,22], total_projected:73, trend:'rising',   confidence:'high'   },
-  { product_id:'d12', name:'Leather Belt',              category:'accessories', price:85,  base_weekly:11.4, slope:0.4,  projected_4w:[12,12,11,12], total_projected:47, trend:'stable',   confidence:'high'   },
-  { product_id:'d5',  name:'Wide Leg Palazzo Trouser',  category:'bottoms',     price:195, base_weekly:8.6,  slope:1.2,  projected_4w:[10,11,12,13], total_projected:46, trend:'rising',   confidence:'high'   },
-  { product_id:'d1',  name:'Silk Slip Dress',           category:'tops',        price:285, base_weekly:9.8,  slope:-1.1, projected_4w:[9,8,7,6],    total_projected:30, trend:'declining', confidence:'high'   },
-  { product_id:'d3',  name:'Draped Midi Dress',         category:'tops',        price:340, base_weekly:4.8,  slope:0.8,  projected_4w:[5,6,6,7],    total_projected:24, trend:'rising',   confidence:'medium' },
-  { product_id:'d7',  name:'Linen Maxi Skirt',          category:'bottoms',     price:175, base_weekly:5.9,  slope:0.2,  projected_4w:[6,6,7,6],    total_projected:25, trend:'stable',   confidence:'medium' },
-  { product_id:'d9',  name:'Oversized Linen Blazer',    category:'outerwear',   price:420, base_weekly:5.4,  slope:-0.6, projected_4w:[5,4,4,3],    total_projected:16, trend:'declining', confidence:'high'   },
-  { product_id:'d6',  name:'Tailored Bermuda Short',    category:'bottoms',     price:135, base_weekly:4.1,  slope:-0.2, projected_4w:[4,4,3,4],    total_projected:15, trend:'stable',   confidence:'medium' },
-  { product_id:'d10', name:'Cotton Utility Jacket',     category:'outerwear',   price:355, base_weekly:2.8,  slope:-0.9, projected_4w:[2,2,1,1],    total_projected:6,  trend:'declining', confidence:'medium' },
-  { product_id:'d4',  name:'Knit Cardigan',             category:'tops',        price:165, base_weekly:1.9,  slope:-0.4, projected_4w:[2,1,1,1],    total_projected:5,  trend:'declining', confidence:'low'    },
-  { product_id:'d8',  name:'Cargo Trousers',            category:'bottoms',     price:155, base_weekly:0.8,  slope:0.3,  projected_4w:[1,1,1,2],    total_projected:5,  trend:'stable',   confidence:'low'    },
-];
 
 // ══════════════════════════════════════════
 // SECTION 1: SELL-THROUGH PER PRODUCT
@@ -822,10 +864,7 @@ function showAllForecast() {
 // ══════════════════════════════════════════
 // LOAD ALL ANALYTICS DATA
 // ══════════════════════════════════════════
-function setDemoBadge() {} // badge removed, kept as no-op to avoid call errors
-
 async function loadAnalytics() {
-  // Show loading spinners in every section
   showLoading('reorder-table', 'sell-through-list', 'top-performing-list',
               'color-performance-grid', 'forecast-table');
 
@@ -837,26 +876,11 @@ async function loadAnalytics() {
       fetch(`/api/analytics/production-forecast?horizon=${currentHorizon}`),
     ]);
 
-    let products        = await productsRes.json();
-    let colorData       = await colorRes.json();
-    let forecastData    = await forecastRes.json();
-    let productionData  = await productionRes.json();
+    const products       = await productsRes.json();
+    const colorData      = await colorRes.json();
+    const forecastData   = await forecastRes.json();
+    const productionData = await productionRes.json();
 
-    // Determine whether we have real sales
-    const hasRealSales  = products.some(p => (parseInt(p.sold) || 0) > 0);
-    const isDemo        = !hasRealSales;
-
-    if (!hasRealSales) {
-      products       = DUMMY_PRODUCTS;
-      colorData      = DUMMY_COLOR_DATA;
-      forecastData   = DUMMY_FORECAST;
-      productionData = DUMMY_PRODUCTION;
-    } else {
-      if (!colorData.length)                                    colorData    = DUMMY_COLOR_DATA;
-      if (forecastData.every(f => f.total_projected === 0))     forecastData = DUMMY_FORECAST;
-    }
-
-    setDemoBadge(isDemo);
     renderProductionForecast(productionData, currentHorizon);
     renderSellThrough(products);
     renderTopPerforming(products);
@@ -865,12 +889,11 @@ async function loadAnalytics() {
 
   } catch (err) {
     console.error('Analytics load error:', err);
-    setDemoBadge(true);
-    renderProductionForecast(DUMMY_PRODUCTION, currentHorizon);
-    renderSellThrough(DUMMY_PRODUCTS);
-    renderTopPerforming(DUMMY_PRODUCTS);
-    renderColorPerformance(DUMMY_PRODUCTS, DUMMY_COLOR_DATA);
-    renderForecast(DUMMY_FORECAST);
+    renderProductionForecast([], currentHorizon);
+    renderSellThrough([]);
+    renderTopPerforming([]);
+    renderColorPerformance([], []);
+    renderForecast([]);
   }
 }
 
@@ -921,6 +944,180 @@ function generateFullReport() {
   const w = window.open('', '_blank', 'width=960,height=720');
   w.document.write(html);
   w.document.close();
+}
+
+// ══════════════════════════════════════════
+// CHAT AGENT
+// ══════════════════════════════════════════
+
+// In-memory conversation history (Gemini format)
+// [{ role: 'user'|'model', parts: [{ text: string }] }]
+let chatHistory = [];
+let chatBusy    = false;
+
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleInputKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+}
+
+function fillPrompt(text) {
+  const input = document.getElementById('chat-input');
+  input.value = text;
+  input.focus();
+  autoResizeTextarea(input);
+}
+
+function clearChat() {
+  chatHistory = [];
+  const box = document.getElementById('ai-chat-messages');
+  box.innerHTML = `
+  <div id="chat-welcome" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 20px; color:var(--text-dim)">
+    <div style="font-family:'Cormorant Garamond',serif; font-size:22px; color:var(--text-bright); font-weight:300; margin-bottom:8px">Ask me anything about your business</div>
+    <div style="font-size:12px; color:var(--text-dim); margin-bottom:28px">I have live access to your sales, inventory, and forecasts.</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:560px">
+      <button class="chip-btn" onclick="fillPrompt('What should I produce next?')">What should I produce next?</button>
+      <button class="chip-btn" onclick="fillPrompt('Show me my top selling products')">Top selling products</button>
+      <button class="chip-btn" onclick="fillPrompt('Which products are running low on stock?')">Low stock alerts</button>
+      <button class="chip-btn" onclick="fillPrompt('How are sales trending this month?')">Sales trend this month</button>
+      <button class="chip-btn" onclick="fillPrompt('What is the demand forecast for the next 4 weeks?')">4-week demand forecast</button>
+      <button class="chip-btn" onclick="fillPrompt('Which colors are selling best?')">Best performing colors</button>
+    </div>
+  </div>`;
+  document.getElementById('chat-input').value = '';
+  autoResizeTextarea(document.getElementById('chat-input'));
+}
+
+// Lightweight markdown → HTML (bold, italic, code, headers, bullets, tables)
+function renderMarkdown(text) {
+  return text
+    // Tables: convert | row | syntax
+    .replace(/^\|(.+)\|\s*$/gm, (line) => {
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+    })
+    .replace(/<tr><td>[-: |]+<\/td><\/tr>/g, '') // strip separator rows
+    .replace(/(<tr>.*<\/tr>\n?)+/gs, m => `<table><tbody>${m}</tbody></table>`)
+    // Headers
+    .replace(/^### (.+)$/gm, '<div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin:12px 0 6px">$1</div>')
+    .replace(/^## (.+)$/gm,  '<div style="font-size:14px;color:var(--text-bright);font-weight:600;margin:14px 0 6px">$1</div>')
+    .replace(/^# (.+)$/gm,   '<div style="font-size:16px;color:var(--text-bright);font-weight:600;margin:14px 0 6px">$1</div>')
+    // Bold + italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,         '<em>$1</em>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code style="background:var(--surface);padding:1px 5px;border-radius:2px;font-size:11px">$1</code>')
+    // Bullet lists
+    .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/gs, m => `<ul>${m}</ul>`)
+    // Numbered lists
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    // Line breaks (double newline = paragraph break)
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g,   '<br>');
+}
+
+function appendBubble(role, text) {
+  // Hide welcome screen on first message
+  const welcome = document.getElementById('chat-welcome');
+  if (welcome) welcome.remove();
+
+  const box  = document.getElementById('ai-chat-messages');
+  const div  = document.createElement('div');
+  div.className = role === 'user' ? 'bubble-user' : 'bubble-assistant';
+
+  if (role === 'user') {
+    div.textContent = text;
+  } else {
+    div.innerHTML = renderMarkdown(text);
+  }
+
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const welcome = document.getElementById('chat-welcome');
+  if (welcome) welcome.remove();
+
+  const box = document.getElementById('ai-chat-messages');
+  const el  = document.createElement('div');
+  el.id = 'typing-indicator';
+  el.className = 'typing-indicator';
+  el.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function setChatBusy(busy) {
+  chatBusy = busy;
+  const input = document.getElementById('chat-input');
+  const btn   = document.getElementById('chat-send-btn');
+  const label = document.getElementById('chat-status-label');
+  input.disabled  = busy;
+  btn.disabled    = busy;
+  btn.style.opacity = busy ? '0.5' : '1';
+  btn.style.cursor  = busy ? 'not-allowed' : 'pointer';
+  label.textContent = busy
+    ? 'Thinking…'
+    : 'Powered by Gemini · live data access';
+}
+
+async function sendChatMessage() {
+  if (chatBusy) return;
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  autoResizeTextarea(input);
+
+  appendBubble('user', text);
+  chatHistory.push({ role: 'user', parts: [{ text }] });
+
+  setChatBusy(true);
+  showTyping();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        // Send last 20 messages to keep token usage bounded
+        messages: chatHistory.slice(-20),
+      }),
+    });
+
+    removeTyping();
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+      appendBubble('model', `Error: ${err.error || res.statusText}`);
+    } else {
+      const { reply } = await res.json();
+      appendBubble('model', reply);
+      chatHistory.push({ role: 'model', parts: [{ text: reply }] });
+    }
+  } catch (err) {
+    removeTyping();
+    appendBubble('model', `Network error: ${err.message}`);
+  } finally {
+    setChatBusy(false);
+    document.getElementById('chat-input').focus();
+  }
 }
 
 // ── INIT ──
