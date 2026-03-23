@@ -852,6 +852,7 @@ app.get('/api/analytics/rankings', requireAuth, (req, res) => {
 
 // Shared helper: fetch weekly history from POS transactions
 function getWeeklyHistory(weeks = 16) {
+  const days = weeks * 7;
   const rows = db.all(`
     SELECT ti.product_id,
            strftime('%Y-%W', t.created_at) AS wk,
@@ -859,7 +860,7 @@ function getWeeklyHistory(weeks = 16) {
     FROM transaction_items ti
     JOIN transactions t ON t.id = ti.transaction_id
     WHERE t.type = 'sale' AND (t.status = 'completed' OR t.status IS NULL)
-      AND t.created_at >= datetime('now', '-${weeks} weeks')
+      AND t.created_at >= datetime('now', '-${days} days')
     GROUP BY ti.product_id, wk
     ORDER BY ti.product_id, wk
   `);
@@ -870,13 +871,14 @@ function getWeeklyHistory(weeks = 16) {
 
 // Shared helper: fetch weekly history from DIA wholesale sales cache
 function getWeeklyHistoryDIA(weeks = 16) {
+  const days = weeks * 7;
   const rows = db.all(`
     SELECT
       stokkodu AS product_id,
       strftime('%Y-%W', tarih) AS wk,
       SUM(miktar)              AS units
     FROM dia_sales_cache
-    WHERE tarih >= date('now', '-${weeks} weeks') AND stokkodu != ''
+    WHERE tarih >= date('now', '-${days} days') AND stokkodu != ''
     GROUP BY stokkodu, wk
     ORDER BY stokkodu, wk
   `);
