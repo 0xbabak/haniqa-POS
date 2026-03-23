@@ -485,6 +485,45 @@ app.post('/api/dia/sync', requireAuth, async (req, res) => {
   }
 });
 
+// Returns DIA stock cache grouped as product objects (for inventory page)
+app.get('/api/dia/inventory', requireAuth, (req, res) => {
+  try {
+    const rows = db.all(`
+      SELECT stokkodu, stokadi, renk, beden, miktar, synced_at
+      FROM dia_stock_cache
+      ORDER BY stokkodu, renk, beden
+    `);
+
+    // Group by stokkodu into product-like objects
+    const map = new Map();
+    for (const r of rows) {
+      if (!map.has(r.stokkodu)) {
+        map.set(r.stokkodu, {
+          id:       r.stokkodu,
+          ref:      r.stokkodu,
+          name:     r.stokadi,
+          category: '',
+          variants: [],
+        });
+      }
+      map.get(r.stokkodu).variants.push({
+        color:   r.renk  || '',
+        size:    r.beden || '',
+        stock:   r.miktar,
+        channel: 'wholesale',
+      });
+    }
+
+    res.json({
+      products:  Array.from(map.values()),
+      syncedAt:  rows[0]?.synced_at || null,
+      total:     map.size,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 
 app.get('/api/dashboard/stats', requireAuth, (req, res) => {

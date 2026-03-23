@@ -429,7 +429,24 @@ let countModalProductId = null;
 let countModalDeltas    = {}; // "color|size|channel" -> delta
 
 // ── DATA ──
+// Tries DIA stock cache first; falls back to local products if cache is empty.
 async function loadProducts() {
+  try {
+    const diaRes  = await fetch('/api/dia/inventory');
+    if (diaRes.ok) {
+      const diaData = await diaRes.json();
+      if (diaData.products && diaData.products.length > 0) {
+        allProducts = diaData.products;
+        const lbl = document.getElementById('inv-sync-label');
+        if (lbl && diaData.syncedAt) {
+          const d = new Date(diaData.syncedAt + 'Z');
+          lbl.textContent = `DIA stock · ${diaData.total} products · synced ${d.toLocaleString()}`;
+        }
+        return;
+      }
+    }
+  } catch (_) {}
+  // Fallback to local products
   const res = await fetch('/api/products');
   if (!res.ok) { window.location.href = '/login.html'; return; }
   allProducts = await res.json();
@@ -967,13 +984,12 @@ async function syncInventoryFromDIA() {
   const btn = document.getElementById('inv-dia-sync-btn');
   const lbl = document.getElementById('inv-sync-label');
   btn.disabled = true;
-  lbl.textContent = 'Syncing…';
+  lbl.textContent = 'Syncing from DIA…';
   try {
     const res  = await fetch('/api/dia/sync', { method: 'POST' });
     const data = await res.json();
     if (data.ok) {
       lbl.textContent = `Synced — ${data.stockCount} variants from DIA`;
-      // Reload products to reflect new DIA stock data
       await loadProducts();
       renderInventory();
     } else {
@@ -992,9 +1008,9 @@ async function loadDIASyncStatus() {
     const lbl  = document.getElementById('inv-sync-label');
     if (data.stock.lastSync) {
       const d = new Date(data.stock.lastSync + 'Z');
-      lbl.textContent = `Last DIA sync: ${d.toLocaleString()} · ${data.stock.records} variants`;
+      lbl.textContent = `DIA stock · ${data.stock.records} variants · synced ${d.toLocaleString()}`;
     } else {
-      lbl.textContent = 'Never synced from DIA';
+      lbl.textContent = 'Not yet synced from DIA';
     }
   } catch (_) {}
 }

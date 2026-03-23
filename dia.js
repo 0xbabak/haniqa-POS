@@ -118,29 +118,48 @@ async function syncSales(db) {
   from.setMonth(from.getMonth() - 12);
   const fromStr = from.toISOString().slice(0, 10);
 
-  // Try irsaliye (waybill) detailed list first; fall back to fatura if no results
+  // Try irsaliye (waybill) detailed list first; fall back to fatura if no results.
+  // DIA filter format: operator field (not "op"), and ">=" (not "gte").
   let list = [];
   try {
     const res = await diaCall('scf_irsaliye_listele_ayrintili', {
       filters: [
-        { field: 'hareket_turu', op: 'eq',  value: 'S'       }, // S = Satış
-        { field: 'tarih',        op: 'gte', value: fromStr  },
+        { field: 'tarih', operator: '>=', value: fromStr },
       ],
     });
     list = res.result || [];
-  } catch (_) {}
+    if (list.length) console.log(`✓ DIA irsaliye sync: ${list.length} line-items`);
+  } catch (err) {
+    console.warn('DIA irsaliye sync error:', err.message);
+  }
 
   // If irsaliye returned nothing, try fatura detailed list
   if (!list.length) {
     try {
       const res = await diaCall('scf_fatura_listele_ayrintili', {
         filters: [
-          { field: 'hareket_turu', op: 'eq',  value: 'S'       },
-          { field: 'tarih',        op: 'gte', value: fromStr  },
+          { field: 'tarih', operator: '>=', value: fromStr },
         ],
       });
       list = res.result || [];
-    } catch (_) {}
+      if (list.length) console.log(`✓ DIA fatura sync: ${list.length} line-items`);
+    } catch (err) {
+      console.warn('DIA fatura sync error:', err.message);
+    }
+  }
+
+  // Last resort: fetch without date filter (some DIA configs don't index tarih)
+  if (!list.length) {
+    try {
+      const res = await diaCall('scf_irsaliye_listele_ayrintili', {});
+      list = (res.result || []).filter(r => {
+        const d = r.tarih || r.evrak_tarihi || '';
+        return !d || d >= fromStr;
+      });
+      if (list.length) console.log(`✓ DIA irsaliye (no-filter) sync: ${list.length} line-items`);
+    } catch (err) {
+      console.warn('DIA irsaliye no-filter sync error:', err.message);
+    }
   }
 
   const doSync = db.transaction(() => {
