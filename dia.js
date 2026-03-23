@@ -6,7 +6,10 @@
 // All data is cached locally in dia_stock_cache and dia_sales_cache tables.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DIA_URL  = process.env.DIA_URL      || 'https://haniqa.ws.dia.com.tr/api/v3/scf/json';
+// Derive base URL from DIA_URL env var (strip any module path suffix)
+const _DIA_BASE = (process.env.DIA_URL || 'https://haniqa.ws.dia.com.tr').replace(/\/api\/.*$/, '');
+const DIA_SIS_URL = `${_DIA_BASE}/api/v3/sis/json`; // login, sis_* services
+const DIA_SCF_URL = `${_DIA_BASE}/api/v3/scf/json`; // scf_* stock & sales services
 const DIA_USER = process.env.DIA_USERNAME || 'ws.rts';
 const DIA_PASS = process.env.DIA_PASSWORD || '654321';
 const DIA_KEY  = process.env.DIA_APIKEY   || '86f9f6b1-4573-486f-b3ca-ecfb0c810e0c';
@@ -19,8 +22,8 @@ let _sessionExp = 0;
 let _syncBusy   = false;
 
 // ── CORE HTTP ─────────────────────────────────────────────────────────────────
-async function diaPost(body) {
-  const res = await fetch(DIA_URL, {
+async function diaPost(body, url = DIA_SCF_URL) {
+  const res = await fetch(url, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
@@ -38,14 +41,14 @@ async function diaLogin() {
       disconnect_same_user: 'True',
       params:               { apikey: DIA_KEY },
     },
-  });
+  }, DIA_SIS_URL);
   if (res.code !== '200') throw new Error(`DIA login failed: ${res.msg}`);
 
   _sessionId  = res.msg;
   _sessionExp = Date.now() + 50 * 60 * 1000; // 50-min safety margin (DIA timeout = 1h)
 
   // Discover firma_kodu and donem_kodu
-  const firmRes = await diaPost({ sis_yetkili_firma_donem_sube_depo: { session_id: _sessionId } });
+  const firmRes = await diaPost({ sis_yetkili_firma_donem_sube_depo: { session_id: _sessionId } }, DIA_SIS_URL);
   if (firmRes.result?.length > 0) {
     const firma    = firmRes.result[0];
     _firmaKodu     = firma.firmakodu;
@@ -61,11 +64,13 @@ async function getSession() {
 }
 
 // ── GENERIC CALL ──────────────────────────────────────────────────────────────
+// Services prefixed with 'sis_' go to the SIS module endpoint; all others to SCF.
 async function diaCall(service, params = {}) {
   const { sessionId, firmaKodu, donemKodu } = await getSession();
+  const url = service.startsWith('sis_') ? DIA_SIS_URL : DIA_SCF_URL;
   const res = await diaPost({
     [service]: { session_id: sessionId, firma_kodu: firmaKodu, donem_kodu: donemKodu, ...params },
-  });
+  }, url);
   if (res.code === '401') {
     _sessionId = null; // force re-login on next call
     return diaCall(service, params);
