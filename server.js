@@ -881,7 +881,7 @@ function getWeeklyHistoryDIA(weeks = 16) {
     ORDER BY stokkodu, wk
   `);
   const history = {};
-  rows.forEach(r => { (history[r.product_id] ??= []).push({ wk: r.wk, units: r.units }); });
+  rows.forEach(r => { (history[r.product_id] ??= []).push({ wk: r.wk, units: parseFloat(r.units) || 0 }); });
   return history;
 }
 
@@ -896,20 +896,28 @@ function getProductsWithStock() {
   `);
 }
 
-// Shared helper: fetch products with stock from DIA cache
+// Shared helper: fetch products with stock from DIA cache.
+// Builds the product list from dia_sales_cache (guaranteed to have stokkodu
+// after the field-name fix) and LEFT JOINs stock from dia_stock_cache.
 function getProductsWithStockDIA() {
   return db.all(`
     SELECT
-      d.stokkodu                    AS id,
-      d.stokkodu                    AS ref,
-      COALESCE(p.name, d.stokadi)   AS name,
-      COALESCE(p.category, '')      AS category,
-      COALESCE(p.price, 0)          AS price,
-      SUM(d.miktar)                 AS stock
-    FROM dia_stock_cache d
-    LEFT JOIN products p ON p.ref = d.stokkodu
-    WHERE d.stokkodu != ''
-    GROUP BY d.stokkodu
+      ds.stokkodu                          AS id,
+      ds.stokkodu                          AS ref,
+      COALESCE(p.name, MAX(ds.stokadi))    AS name,
+      COALESCE(p.category, '')             AS category,
+      COALESCE(p.price, MAX(ds.birimfiyat)) AS price,
+      COALESCE(st.stock, 0)                AS stock
+    FROM dia_sales_cache ds
+    LEFT JOIN products p  ON p.ref = ds.stokkodu
+    LEFT JOIN (
+      SELECT stokkodu, SUM(miktar) AS stock
+      FROM dia_stock_cache
+      WHERE stokkodu != ''
+      GROUP BY stokkodu
+    ) st ON st.stokkodu = ds.stokkodu
+    WHERE ds.stokkodu != ''
+    GROUP BY ds.stokkodu
   `);
 }
 
