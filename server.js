@@ -467,6 +467,24 @@ app.patch('/api/transactions/:id', requireAuth, (req, res) => {
 
 // ── DIA SYNC ──────────────────────────────────────────────────────────────────
 
+// Returns raw sample rows straight from DIA (no caching) so we can inspect field names
+app.get('/api/dia/debug-sample', requireAuth, async (req, res) => {
+  try {
+    const stockRaw = await dia.diaCall('scf_stokkart_varyant_listele', {
+      params: { miktarhesapla: '1' },
+      limit: 3,
+    });
+    const salesRaw = await dia.diaCall('scf_irsaliye_listele_ayrintili', { limit: 3 });
+    const cached   = {
+      stock_sample: db.all('SELECT * FROM dia_stock_cache LIMIT 3'),
+      sales_sample: db.all('SELECT * FROM dia_sales_cache LIMIT 3'),
+    };
+    res.json({ stockRaw, salesRaw, cached });
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
 app.get('/api/dia/status', requireAuth, (req, res) => {
   try {
     res.json(dia.getStatus(db));
@@ -485,39 +503,34 @@ app.post('/api/dia/sync', requireAuth, async (req, res) => {
   }
 });
 
-// Returns DIA stock cache grouped as product objects (for inventory page)
+// Returns DIA stock cache as product objects (for inventory page).
+// Each row in dia_stock_cache is one product (from scf_stokkart_listele).
+// renk field = category code, beden field = category name (reused columns).
 app.get('/api/dia/inventory', requireAuth, (req, res) => {
   try {
     const rows = db.all(`
-      SELECT stokkodu, stokadi, renk, beden, miktar, synced_at
+      SELECT stokkodu, stokadi, renk AS kategori_kodu, beden AS kategori, miktar, synced_at
       FROM dia_stock_cache
-      ORDER BY stokkodu, renk, beden
+      ORDER BY stokadi
     `);
 
-    // Group by stokkodu into product-like objects
-    const map = new Map();
-    for (const r of rows) {
-      if (!map.has(r.stokkodu)) {
-        map.set(r.stokkodu, {
-          id:       r.stokkodu,
-          ref:      r.stokkodu,
-          name:     r.stokadi,
-          category: '',
-          variants: [],
-        });
-      }
-      map.get(r.stokkodu).variants.push({
-        color:   r.renk  || '',
-        size:    r.beden || '',
-        stock:   r.miktar,
+    const products = rows.map(r => ({
+      id:       r.stokkodu,
+      ref:      r.stokkodu,
+      name:     r.stokadi,
+      category: r.kategori || r.kategori_kodu || '',
+      variants: [{
+        color:   '__dia__',
+        size:    '',
+        stock:   parseFloat(r.miktar) || 0,
         channel: 'wholesale',
-      });
-    }
+      }],
+    }));
 
     res.json({
-      products:  Array.from(map.values()),
-      syncedAt:  rows[0]?.synced_at || null,
-      total:     map.size,
+      products,
+      syncedAt: rows[0]?.synced_at || null,
+      total:    products.length,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

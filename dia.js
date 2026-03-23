@@ -79,10 +79,14 @@ async function diaCall(service, params = {}) {
 }
 
 // ── STOCK SYNC ────────────────────────────────────────────────────────────────
-// Fetches all product variants with their current warehouse quantities from DIA.
+// Uses scf_stokkart_listele which includes stokkartkodu, aciklama, gercek_stok.
 async function syncStock(db) {
-  const res  = await diaCall('scf_stokkart_varyant_listele', { params: { miktarhesapla: '1' } });
+  const res  = await diaCall('scf_stokkart_listele', { params: { miktarhesapla: '1' } });
   const list = res.result || [];
+
+  if (list.length > 0) {
+    console.log(`[DIA stock] ${list.length} products. Sample fields: stokkartkodu=${list[0].stokkartkodu}, aciklama=${list[0].aciklama}, gercek_stok=${list[0].gercek_stok}`);
+  }
 
   const doSync = db.transaction(() => {
     db.run('DELETE FROM dia_stock_cache');
@@ -91,12 +95,12 @@ async function syncStock(db) {
         `INSERT INTO dia_stock_cache (dia_key, stokkodu, stokadi, renk, beden, miktar, synced_at)
          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
         [
-          String(row._key       ?? ''),
-          String(row.stokkodu   ?? row.kodu  ?? ''),
-          String(row.stokadi    ?? row.adi   ?? ''),
-          String(row.renk       ?? row.renk1 ?? ''),
-          String(row.beden      ?? row.beden1 ?? ''),
-          parseFloat(row.miktar ?? row.toplam_miktar ?? 0),
+          String(row._key            ?? ''),
+          String(row.stokkartkodu    ?? ''),
+          String(row.aciklama        ?? row.stokadi ?? ''),
+          String(row.ozelkod1kodu    ?? ''),   // category code in renk field (reused)
+          String(row.ozelkod1        ?? ''),   // category name in beden field (reused)
+          parseFloat(row.gercek_stok ?? row.fiili_stok ?? 0),
         ]
       );
     }
@@ -162,24 +166,32 @@ async function syncSales(db) {
     }
   }
 
+  if (list.length > 0) {
+    console.log(`[DIA sales] ${list.length} records. Sample: stokkartkodu=${list[0].stokkartkodu}, tarih=${list[0].tarih}, miktar=${list[0].miktar}, turuack=${list[0].turuack}`);
+  }
+
+  // Filter out return records (İade = return in Turkish)
+  const sales = list.filter(r => !String(r.turuack ?? '').includes('İade'));
+  console.log(`[DIA sales] After filtering returns: ${sales.length} sales records`);
+
   const doSync = db.transaction(() => {
     db.run('DELETE FROM dia_sales_cache');
-    for (const row of list) {
+    for (const row of sales) {
       db.run(
         `INSERT INTO dia_sales_cache
            (dia_key, belge_no, tarih, stokkodu, stokadi, renk, beden, miktar, birimfiyat, toplam, synced_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
         [
-          String(row._key         ?? ''),
-          String(row.belge_no     ?? row.evrak_no ?? row.fatura_no ?? ''),
-          String(row.tarih        ?? ''),
-          String(row.stokkodu     ?? row.kodu     ?? ''),
-          String(row.stokadi      ?? row.adi      ?? ''),
-          String(row.renk         ?? ''),
-          String(row.beden        ?? ''),
-          parseFloat(row.miktar   ?? 0),
-          parseFloat(row.birimfiyat ?? row.fiyat ?? 0),
-          parseFloat(row.toplam   ?? row.tutar ?? 0),
+          String(row._key             ?? ''),
+          String(row.fisno            ?? row.belgeno ?? ''),
+          String(row.tarih            ?? ''),
+          String(row.stokkartkodu     ?? ''),
+          String(row.stokaciklama     ?? row.stokadi ?? ''),
+          String(row.renk             ?? ''),
+          String(row.beden            ?? ''),
+          parseFloat(row.miktar       ?? 0),
+          parseFloat(row.birimfiyati  ?? row.birimfiyat ?? 0),
+          parseFloat(row.toplamtutar  ?? row.toplam ?? 0),
         ]
       );
     }

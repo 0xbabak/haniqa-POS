@@ -523,6 +523,20 @@ function buildVariantRows(variants, channel) {
   if (variants.length === 0) {
     return `<div style="padding:10px 14px 10px 56px; font-size: 12px; color:var(--text-dim); font-family:'DM Mono',monospace">No variants configured</div>`;
   }
+  // DIA product-level stock: single variant with marker '__dia__'
+  if (variants.length === 1 && variants[0].color === '__dia__') {
+    const stock    = parseFloat(variants[0].stock) || 0;
+    const stockCls = stock === 0 ? 'zero' : stock < 10 ? 'low' : '';
+    return `
+      <div class="inv-variant-row">
+        <span></span>
+        <span class="inv-v-color" style="color:var(--text-dim); font-size:11px">DIA real stock</span>
+        <span class="inv-v-size"></span>
+        <span></span>
+        <span class="inv-v-stock ${stockCls}" style="text-align:right; padding-right:8px; font-size:14px; font-weight:600">${stock}</span>
+        <span></span>
+      </div>`;
+  }
   const sizeLabel = s => channel === 'single' ? `EU ${s}` : s;
   return variants.map(v => {
     const stock    = parseInt(v.stock) || 0;
