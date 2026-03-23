@@ -64,13 +64,18 @@ function forecastSeries(weeklySales, currentStock, horizonWeeks, leadTimeDays = 
   }
 
   const base          = wma(weeklySales);
-  const { slope }     = linearRegression(weeklySales);
+  const { slope: rawSlope } = linearRegression(weeklySales);
   const sd            = stdDev(weeklySales);
   const cv            = base > 0 ? sd / base : 1;
   const n             = weeklySales.length;
   const leadTimeWeeks = leadTimeDays / 7;
 
-  // Project future weeks: WMA base extrapolated with trend slope
+  // Dampen slope for sparse data to prevent wild extrapolation.
+  // With fewer than 6 data points, cap slope to ±20% of the WMA per week.
+  const maxSlope = base > 0 ? base * 0.20 : 1;
+  const slope    = n >= 6 ? rawSlope : Math.max(-maxSlope, Math.min(maxSlope, rawSlope));
+
+  // Project future weeks: WMA base extrapolated with dampened trend slope
   const projected_weekly = [];
   for (let h = 1; h <= horizonWeeks; h++) {
     const raw = base + slope * (n - 1 + h);
@@ -101,7 +106,7 @@ function forecastSeries(weeklySales, currentStock, horizonWeeks, leadTimeDays = 
 
   return {
     wma_weekly:           Math.round(base * 10) / 10,
-    slope:                Math.round(slope * 100) / 100,
+    slope:                Math.round(rawSlope * 100) / 100,
     projected_weekly,
     forecast_total,
     safety_stock,
