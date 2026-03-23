@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 const analytics = require('./analytics');
+const dia        = require('./dia');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // ── DATA DIRECTORY (persistent volume on Fly.io, project root locally) ────────
@@ -267,36 +268,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   }
 });
 
-// ── INVENTORY ADJUSTMENT ──────────────────────────────────────────────────────
-
-app.post('/api/inventory/adjust', requireAuth, (req, res) => {
-  const { adjustments } = req.body;
-  if (!Array.isArray(adjustments) || adjustments.length === 0)
-    return res.status(400).json({ error: 'adjustments array required' });
-  try {
-    const doAdjust = db.transaction(() => {
-      for (const adj of adjustments) {
-        const { productId, color, size, channel, delta } = adj;
-        if (!productId || !color || !size || !channel || delta === undefined) continue;
-        const existing = db.get(
-          'SELECT id FROM product_variants WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-          [productId, color, size, channel]
-        );
-        if (existing) {
-          db.run(
-            'UPDATE product_variants SET stock = MAX(0, stock + ?) WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-            [delta, productId, color, size, channel]
-          );
-        }
-      }
-    });
-    doAdjust();
-    res.json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+// ── INVENTORY (read-only — stock is managed by DIA sync) ─────────────────────
 
 // ── TRANSACTIONS ──────────────────────────────────────────────────────────────
 
@@ -333,12 +305,6 @@ app.post('/api/transactions', requireAuth, (req, res) => {
           'INSERT INTO transaction_items (transaction_id, product_id, color, size, channel, quantity, unit_price) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [txId, item.productId, item.color || null, item.size || null, channel, item.quantity, item.unitPrice]
         );
-        if (item.color && item.size) {
-          db.run(
-            'UPDATE product_variants SET stock = MAX(0, stock - ?) WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-            [item.quantity, item.productId, item.color, item.size, channel]
-          );
-        }
       }
     }
   });
@@ -357,18 +323,7 @@ app.delete('/api/transactions/:id', requireAuth, (req, res) => {
     const txn = db.get('SELECT * FROM transactions WHERE id = ?', [req.params.id]);
     if (!txn) return res.status(404).json({ error: 'Transaction not found' });
     const doDelete = db.transaction(() => {
-      if (txn.type === 'sale') {
-        const items = db.all('SELECT * FROM transaction_items WHERE transaction_id = ?', [txn.id]);
-        for (const item of items) {
-          if (item.color && item.size && item.channel) {
-            db.run(
-              'UPDATE product_variants SET stock = stock + ? WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-              [item.quantity, item.product_id, item.color, item.size, item.channel]
-            );
-          }
-        }
-      }
-      db.run('DELETE FROM transactions WHERE id = ?', [txn.id]); 
+      db.run('DELETE FROM transactions WHERE id = ?', [txn.id]);
     });
     doDelete();
     res.json({ ok: true });
@@ -395,28 +350,10 @@ app.patch('/api/transactions/:id/edit', requireAuth, (req, res) => {
           const updated = items.find(i => i.itemId === orig.id);
 
           if (!updated) {
-            // Item removed — restore full original stock
-            if (orig.color && orig.size && orig.channel) {
-              db.run(
-                'UPDATE product_variants SET stock = stock + ? WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-                [orig.quantity, orig.product_id, orig.color, orig.size, orig.channel]
-              );
-            }
             db.run('DELETE FROM transaction_items WHERE id = ?', [orig.id]);
           } else {
             const newQty   = Math.max(1, parseInt(updated.quantity)  || 1);
             const newPrice = Math.max(0, parseFloat(updated.unitPrice) || 0);
-
-            if (newQty < orig.quantity) {
-              // Quantity reduced — restore difference to stock
-              const diff = orig.quantity - newQty;
-              if (orig.color && orig.size && orig.channel) {
-                db.run(
-                  'UPDATE product_variants SET stock = stock + ? WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-                  [diff, orig.product_id, orig.color, orig.size, orig.channel]
-                );
-              }
-            }
             db.run(
               'UPDATE transaction_items SET quantity = ?, unit_price = ? WHERE id = ?',
               [newQty, newPrice, orig.id]
@@ -461,28 +398,10 @@ app.patch('/api/transactions/:id/finalize', requireAuth, (req, res) => {
           const updated = items.find(i => i.itemId === orig.id);
 
           if (!updated) {
-            // Item removed — restore full original stock
-            if (orig.color && orig.size && orig.channel) {
-              db.run(
-                'UPDATE product_variants SET stock = stock + ? WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-                [orig.quantity, orig.product_id, orig.color, orig.size, orig.channel]
-              );
-            }
             db.run('DELETE FROM transaction_items WHERE id = ?', [orig.id]);
           } else {
             const newQty   = Math.max(1, parseInt(updated.quantity)  || 1);
             const newPrice = Math.max(0, parseFloat(updated.unitPrice) || 0);
-
-            if (newQty < orig.quantity) {
-              // Quantity reduced — restore the difference to stock
-              const diff = orig.quantity - newQty;
-              if (orig.color && orig.size && orig.channel) {
-                db.run(
-                  'UPDATE product_variants SET stock = stock + ? WHERE product_id = ? AND color = ? AND size = ? AND channel = ?',
-                  [diff, orig.product_id, orig.color, orig.size, orig.channel]
-                );
-              }
-            }
             db.run(
               'UPDATE transaction_items SET quantity = ?, unit_price = ? WHERE id = ?',
               [newQty, newPrice, orig.id]
@@ -546,10 +465,70 @@ app.patch('/api/transactions/:id', requireAuth, (req, res) => {
   }
 });
 
+// ── DIA SYNC ──────────────────────────────────────────────────────────────────
+
+app.get('/api/dia/status', requireAuth, (req, res) => {
+  try {
+    res.json(dia.getStatus(db));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/dia/sync', requireAuth, async (req, res) => {
+  try {
+    const { stockCount, salesCount } = await dia.fullSync(db);
+    res.json({ ok: true, stockCount, salesCount });
+  } catch (err) {
+    console.error('Manual DIA sync error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 
 app.get('/api/dashboard/stats', requireAuth, (req, res) => {
   const channel = req.query.channel || 'both';
+  const source  = req.query.source  || 'pos';
+
+  if (source === 'dia') {
+    try {
+      const totals = db.get(`
+        SELECT
+          COALESCE(SUM(miktar * birimfiyat), 0) AS total_revenue,
+          COALESCE(SUM(miktar), 0)              AS total_units
+        FROM dia_sales_cache
+      `);
+      const today = db.get(`
+        SELECT
+          COALESCE(SUM(miktar * birimfiyat), 0) AS today_sales,
+          COUNT(DISTINCT belge_no)              AS today_count
+        FROM dia_sales_cache
+        WHERE date(tarih) = date('now')
+      `);
+      const counts = db.get(`
+        SELECT
+          (SELECT COUNT(DISTINCT stokkodu) FROM dia_stock_cache) AS active_skus,
+          (SELECT COUNT(*) FROM (
+            SELECT stokkodu FROM dia_stock_cache
+            GROUP BY stokkodu HAVING SUM(miktar) < 20
+          )) AS low_stock_count
+      `);
+      return res.json({
+        todaysSales:      today?.today_sales      ?? 0,
+        todaysSalesCount: today?.today_count      ?? 0,
+        todaysCashChange: today?.today_sales      ?? 0,
+        totalRevenue:     totals?.total_revenue   ?? 0,
+        totalUnits:       totals?.total_units     ?? 0,
+        activeSKUs:       counts?.active_skus     ?? 0,
+        lowStockCount:    counts?.low_stock_count ?? 0,
+        source: 'dia',
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+  }
   try {
     const totals = db.get(`
       SELECT
@@ -610,8 +589,33 @@ app.get('/api/dashboard/stats', requireAuth, (req, res) => {
 
 app.get('/api/dashboard/monthly', requireAuth, (req, res) => {
   const channel = req.query.channel || 'both';
+  const source  = req.query.source  || 'pos';
   const from    = req.query.from   || null;
   const to      = req.query.to     || null;
+
+  if (source === 'dia') {
+    try {
+      const rows = db.all(`
+        SELECT
+          strftime('%Y-%m', tarih)                                          AS ym,
+          strftime('%b', tarih)                                             AS month,
+          ROUND(COALESCE(SUM(miktar * birimfiyat), 0) / 1000.0, 1)        AS revenue,
+          COALESCE(SUM(miktar), 0)                                          AS units
+        FROM dia_sales_cache
+        ${from && to ? `WHERE tarih >= '${from}' AND tarih <= '${to}'` : "WHERE tarih >= date('now', '-12 months')"}
+        GROUP BY ym ORDER BY ym ASC
+      `);
+      return res.json({
+        months:  rows.map(r => r.month),
+        revenue: rows.map(r => r.revenue),
+        units:   rows.map(r => r.units),
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+  }
+
   try {
     const params = [channel, channel];
     let dateCond = `t.created_at >= datetime('now', '-12 months')`;
@@ -653,6 +657,37 @@ app.get('/api/dashboard/monthly', requireAuth, (req, res) => {
 
 app.get('/api/dashboard/top-sellers', requireAuth, (req, res) => {
   const channel = req.query.channel || 'both';
+  const source  = req.query.source  || 'pos';
+
+  if (source === 'dia') {
+    try {
+      return res.json(db.all(`
+        SELECT
+          ds.stokkodu                           AS ref,
+          COALESCE(p.name, ds.stokadi)          AS name,
+          COALESCE(p.category, '')              AS category,
+          COALESCE(p.price, MAX(ds.birimfiyat)) AS price,
+          COALESCE(p.id, 0)                     AS id,
+          SUM(ds.miktar)                        AS sold,
+          SUM(ds.miktar * ds.birimfiyat)        AS revenue_total,
+          COALESCE(st.total_stock, 0)           AS stock
+        FROM dia_sales_cache ds
+        LEFT JOIN products p ON p.ref = ds.stokkodu
+        LEFT JOIN (
+          SELECT stokkodu, SUM(miktar) AS total_stock
+          FROM dia_stock_cache GROUP BY stokkodu
+        ) st ON st.stokkodu = ds.stokkodu
+        WHERE ds.stokkodu != ''
+        GROUP BY ds.stokkodu
+        ORDER BY sold DESC
+        LIMIT 8
+      `));
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Server error' });
+    }
+  }
+
   try {
     res.json(db.all(`
       SELECT p.*,
@@ -688,7 +723,23 @@ app.get('/api/dashboard/top-sellers', requireAuth, (req, res) => {
 // ── ANALYTICS ─────────────────────────────────────────────────────────────────
 
 app.get('/api/analytics/category-revenue', requireAuth, (req, res) => {
+  const source = req.query.source || 'pos';
   try {
+    if (source === 'dia') {
+      const rows = db.all(`
+        SELECT
+          COALESCE(p.category, 'Other')                                       AS category,
+          ROUND(COALESCE(SUM(ds.miktar * ds.birimfiyat), 0) / 1000.0, 1)     AS revenue
+        FROM dia_sales_cache ds
+        LEFT JOIN products p ON p.ref = ds.stokkodu
+        GROUP BY p.category
+        ORDER BY revenue DESC
+      `);
+      return res.json({
+        categories: rows.map(r => r.category.charAt(0).toUpperCase() + r.category.slice(1)),
+        values:     rows.map(r => r.revenue),
+      });
+    }
     const rows = db.all(`
       SELECT p.category,
         ROUND(COALESCE(SUM(ti.quantity * ti.unit_price), 0) / 1000.0, 1) AS revenue
@@ -709,7 +760,28 @@ app.get('/api/analytics/category-revenue', requireAuth, (req, res) => {
 });
 
 app.get('/api/analytics/rankings', requireAuth, (req, res) => {
+  const source = req.query.source || 'pos';
   try {
+    if (source === 'dia') {
+      return res.json(db.all(`
+        SELECT
+          ds.stokkodu                           AS ref,
+          COALESCE(p.name, ds.stokadi)          AS name,
+          COALESCE(p.category, '')              AS category,
+          COALESCE(p.price, MAX(ds.birimfiyat)) AS price,
+          COALESCE(p.id, 0)                     AS id,
+          SUM(ds.miktar)                        AS sold,
+          COALESCE(st.stock, 0)                 AS stock
+        FROM dia_sales_cache ds
+        LEFT JOIN products p ON p.ref = ds.stokkodu
+        LEFT JOIN (
+          SELECT stokkodu, SUM(miktar) AS stock FROM dia_stock_cache GROUP BY stokkodu
+        ) st ON st.stokkodu = ds.stokkodu
+        WHERE ds.stokkodu != ''
+        GROUP BY ds.stokkodu
+        ORDER BY sold DESC
+      `));
+    }
     res.json(db.all(`
       SELECT p.*,
         COALESCE(SUM(ti.quantity), 0) AS sold,
@@ -726,7 +798,7 @@ app.get('/api/analytics/rankings', requireAuth, (req, res) => {
   }
 });
 
-// Shared helper: fetch weekly history for all products (last N weeks)
+// Shared helper: fetch weekly history from POS transactions
 function getWeeklyHistory(weeks = 16) {
   const rows = db.all(`
     SELECT ti.product_id,
@@ -744,7 +816,24 @@ function getWeeklyHistory(weeks = 16) {
   return history;
 }
 
-// Shared helper: fetch all products with current stock
+// Shared helper: fetch weekly history from DIA wholesale sales cache
+function getWeeklyHistoryDIA(weeks = 16) {
+  const rows = db.all(`
+    SELECT
+      stokkodu AS product_id,
+      strftime('%Y-%W', tarih) AS wk,
+      SUM(miktar)              AS units
+    FROM dia_sales_cache
+    WHERE tarih >= date('now', '-${weeks} weeks') AND stokkodu != ''
+    GROUP BY stokkodu, wk
+    ORDER BY stokkodu, wk
+  `);
+  const history = {};
+  rows.forEach(r => { (history[r.product_id] ??= []).push({ wk: r.wk, units: r.units }); });
+  return history;
+}
+
+// Shared helper: fetch all products with current stock (POS)
 function getProductsWithStock() {
   return db.all(`
     SELECT p.id, p.name, p.category, p.price,
@@ -755,12 +844,30 @@ function getProductsWithStock() {
   `);
 }
 
+// Shared helper: fetch products with stock from DIA cache
+function getProductsWithStockDIA() {
+  return db.all(`
+    SELECT
+      d.stokkodu                    AS id,
+      d.stokkodu                    AS ref,
+      COALESCE(p.name, d.stokadi)   AS name,
+      COALESCE(p.category, '')      AS category,
+      COALESCE(p.price, 0)          AS price,
+      SUM(d.miktar)                 AS stock
+    FROM dia_stock_cache d
+    LEFT JOIN products p ON p.ref = d.stokkodu
+    WHERE d.stokkodu != ''
+    GROUP BY d.stokkodu
+  `);
+}
+
 app.get('/api/analytics/production-forecast', requireAuth, (req, res) => {
   const horizonMap   = { '1w': 1, '2w': 2, '1m': 4, '2m': 8 };
   const horizonWeeks = horizonMap[req.query.horizon] || 2;
+  const source       = req.query.source || 'pos';
   try {
-    const products       = getProductsWithStock();
-    const weeklyHistory  = getWeeklyHistory(16);
+    const products      = source === 'dia' ? getProductsWithStockDIA() : getProductsWithStock();
+    const weeklyHistory = source === 'dia' ? getWeeklyHistoryDIA(16)   : getWeeklyHistory(16);
     res.json(analytics.computeProductionForecast(products, weeklyHistory, horizonWeeks));
   } catch (err) {
     console.error(err);
@@ -769,9 +876,10 @@ app.get('/api/analytics/production-forecast', requireAuth, (req, res) => {
 });
 
 app.get('/api/analytics/forecast', requireAuth, (req, res) => {
+  const source = req.query.source || 'pos';
   try {
-    const products      = getProductsWithStock();
-    const weeklyHistory = getWeeklyHistory(12);
+    const products      = source === 'dia' ? getProductsWithStockDIA() : getProductsWithStock();
+    const weeklyHistory = source === 'dia' ? getWeeklyHistoryDIA(12)   : getWeeklyHistory(12);
     res.json(analytics.computeDemandForecast(products, weeklyHistory));
   } catch (err) {
     console.error(err);
@@ -780,7 +888,27 @@ app.get('/api/analytics/forecast', requireAuth, (req, res) => {
 });
 
 app.get('/api/analytics/color-breakdown', requireAuth, (req, res) => {
+  const source = req.query.source || 'pos';
   try {
+    if (source === 'dia') {
+      const sales = db.all(`
+        SELECT stokkodu AS product_id, renk AS color, 'wholesale' AS channel,
+               SUM(miktar)              AS sold,
+               SUM(miktar * birimfiyat) AS revenue
+        FROM dia_sales_cache
+        WHERE renk IS NOT NULL AND renk != ''
+        GROUP BY stokkodu, renk
+      `);
+      const stock = db.all(`
+        SELECT stokkodu AS product_id, renk AS color, SUM(miktar) AS stock
+        FROM dia_stock_cache
+        WHERE renk IS NOT NULL AND renk != ''
+        GROUP BY stokkodu, renk
+      `);
+      const sm = {};
+      stock.forEach(r => { sm[`${r.product_id}|${r.color}`] = r.stock; });
+      return res.json(sales.map(r => ({ ...r, stock: sm[`${r.product_id}|${r.color}`] || 0 })));
+    }
     const sales = db.all(`
       SELECT ti.product_id, ti.color, ti.channel,
              SUM(ti.quantity)                 AS sold,
@@ -998,11 +1126,18 @@ const CHAT_TOOLS = [
   },
 ];
 
-function executeChatTool(name, args) {
+function executeChatTool(name, args, source = 'pos') {
   const channel = (args && args.channel) || 'both';
+  const useDIA  = source === 'dia';
 
   switch (name) {
     case 'get_business_overview': {
+      if (useDIA) {
+        const totals = db.get(`SELECT COALESCE(SUM(miktar*birimfiyat),0) AS total_revenue, COALESCE(SUM(miktar),0) AS total_units FROM dia_sales_cache`);
+        const today  = db.get(`SELECT COALESCE(SUM(miktar*birimfiyat),0) AS today_sales, COUNT(DISTINCT belge_no) AS today_txns FROM dia_sales_cache WHERE date(tarih)=date('now')`);
+        const counts = db.get(`SELECT (SELECT COUNT(DISTINCT stokkodu) FROM dia_stock_cache) AS active_skus, (SELECT COUNT(*) FROM (SELECT stokkodu FROM dia_stock_cache GROUP BY stokkodu HAVING SUM(miktar)<20)) AS low_stock_count`);
+        return { source: 'dia', ...totals, ...today, ...counts };
+      }
       const totals = db.get(`
         SELECT COALESCE(SUM(ti.quantity * ti.unit_price),0) AS total_revenue,
                COALESCE(SUM(ti.quantity),0)                AS total_units
@@ -1033,6 +1168,18 @@ function executeChatTool(name, args) {
     }
 
     case 'get_top_sellers': {
+      if (useDIA) {
+        return db.all(`
+          SELECT ds.stokkodu AS ref, COALESCE(p.name, ds.stokadi) AS name,
+                 COALESCE(p.category,'') AS category, COALESCE(p.price, MAX(ds.birimfiyat)) AS price,
+                 SUM(ds.miktar) AS sold, SUM(ds.miktar*ds.birimfiyat) AS revenue_total,
+                 COALESCE(st.stock,0) AS stock
+          FROM dia_sales_cache ds
+          LEFT JOIN products p ON p.ref=ds.stokkodu
+          LEFT JOIN (SELECT stokkodu, SUM(miktar) AS stock FROM dia_stock_cache GROUP BY stokkodu) st ON st.stokkodu=ds.stokkodu
+          WHERE ds.stokkodu!='' GROUP BY ds.stokkodu ORDER BY sold DESC LIMIT 8
+        `);
+      }
       return db.all(`
         SELECT p.name, p.ref, p.category, p.price,
           COALESCE(cs.sold,0)          AS sold,
@@ -1059,6 +1206,15 @@ function executeChatTool(name, args) {
     }
 
     case 'get_monthly_sales': {
+      if (useDIA) {
+        return db.all(`
+          SELECT strftime('%Y-%m', tarih) AS ym, strftime('%b', tarih) AS month,
+                 ROUND(COALESCE(SUM(miktar*birimfiyat),0)/1000.0,1) AS revenue_k,
+                 COALESCE(SUM(miktar),0) AS units
+          FROM dia_sales_cache WHERE tarih >= date('now','-12 months')
+          GROUP BY ym ORDER BY ym ASC
+        `);
+      }
       const rows = db.all(`
         SELECT strftime('%Y-%m', t.created_at) AS ym,
                strftime('%b',   t.created_at)  AS month,
@@ -1093,14 +1249,14 @@ function executeChatTool(name, args) {
     case 'get_production_forecast': {
       const horizonMap   = { '1w': 1, '2w': 2, '1m': 4, '2m': 8 };
       const horizonWeeks = horizonMap[args && args.horizon] || 2;
-      const products     = getProductsWithStock();
-      const history      = getWeeklyHistory(16);
+      const products     = useDIA ? getProductsWithStockDIA() : getProductsWithStock();
+      const history      = useDIA ? getWeeklyHistoryDIA(16)   : getWeeklyHistory(16);
       return analytics.computeProductionForecast(products, history, horizonWeeks);
     }
 
     case 'get_demand_forecast': {
-      const products = getProductsWithStock();
-      const history  = getWeeklyHistory(12);
+      const products = useDIA ? getProductsWithStockDIA() : getProductsWithStock();
+      const history  = useDIA ? getWeeklyHistoryDIA(12)   : getWeeklyHistory(12);
       return analytics.computeDemandForecast(products, history);
     }
 
@@ -1136,6 +1292,30 @@ function executeChatTool(name, args) {
     case 'get_sales_by_period': {
       const period  = (args && args.period) || 'today';
       const ch      = (args && args.channel) || 'both';
+      const diaPeriodConds = {
+        today:        `date(tarih) = date('now')`,
+        yesterday:    `date(tarih) = date('now', '-1 day')`,
+        last_7_days:  `tarih >= date('now', '-7 days')`,
+        this_month:   `strftime('%Y-%m', tarih) = strftime('%Y-%m', 'now')`,
+        last_30_days: `tarih >= date('now', '-30 days')`,
+        last_month:   `strftime('%Y-%m', tarih) = strftime('%Y-%m', date('now', '-1 month'))`,
+      };
+      if (useDIA) {
+        const dateCond = diaPeriodConds[period] || diaPeriodConds.today;
+        const summary = db.get(`
+          SELECT COALESCE(SUM(miktar*birimfiyat),0) AS total_revenue,
+                 COALESCE(SUM(miktar),0) AS total_units,
+                 COUNT(DISTINCT belge_no) AS transaction_count
+          FROM dia_sales_cache WHERE ${dateCond}
+        `);
+        const products = db.all(`
+          SELECT COALESCE(p.name, ds.stokadi) AS name, COALESCE(p.category,'') AS category,
+                 'wholesale' AS channel, SUM(ds.miktar) AS units_sold, SUM(ds.miktar*ds.birimfiyat) AS revenue
+          FROM dia_sales_cache ds LEFT JOIN products p ON p.ref=ds.stokkodu
+          WHERE ${dateCond} GROUP BY ds.stokkodu ORDER BY units_sold DESC
+        `);
+        return { period, source: 'dia', ...summary, products };
+      }
       const periodConditions = {
         today:        `date(t.created_at) = date('now')`,
         yesterday:    `date(t.created_at) = date('now', '-1 day')`,
@@ -1221,6 +1401,23 @@ function executeChatTool(name, args) {
 
     case 'get_low_stock_products': {
       const threshold = parseInt((args && args.threshold) || 20);
+      if (useDIA) {
+        const rows = db.all(`
+          SELECT COALESCE(p.name, d.stokadi) AS name, COALESCE(p.category,'') AS category,
+                 SUM(d.miktar) AS total_stock,
+                 COALESCE(s.sold,0) AS total_sold
+          FROM dia_stock_cache d
+          LEFT JOIN products p ON p.ref=d.stokkodu
+          LEFT JOIN (SELECT stokkodu, SUM(miktar) AS sold FROM dia_sales_cache GROUP BY stokkodu) s ON s.stokkodu=d.stokkodu
+          GROUP BY d.stokkodu HAVING total_stock < ?
+          ORDER BY total_stock ASC
+        `, [threshold]);
+        return rows.map(r => ({
+          ...r,
+          sell_through_pct: r.total_sold + r.total_stock > 0
+            ? Math.round(r.total_sold / (r.total_sold + r.total_stock) * 100) : 0,
+        }));
+      }
       const rows = db.all(`
         SELECT p.name, p.category, p.price,
                COALESCE(SUM(pv.stock), 0) AS total_stock,
@@ -1327,15 +1524,20 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     return res.status(503).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
   }
 
-  const { messages } = req.body;
+  const { messages, source } = req.body;
+  const dataSource = source === 'dia' ? 'dia' : 'pos';
   if (!Array.isArray(messages) || !messages.length) {
     return res.status(400).json({ error: 'messages array required' });
   }
 
+  const sourceNote = dataSource === 'dia'
+    ? 'Data source: DIA ERP (wholesale sales & stock cache). All numbers come from DIA, not the POS register.'
+    : 'Data source: POS register (local transaction database).';
+
   try {
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
-      systemInstruction: CHAT_SYSTEM_PROMPT,
+      systemInstruction: CHAT_SYSTEM_PROMPT + `\n\n${sourceNote}`,
       tools: [{ functionDeclarations: CHAT_TOOLS }],
       toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
     });
@@ -1358,7 +1560,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
       const toolResults = calls.map(call => {
         let result;
         try {
-          result = executeChatTool(call.name, call.args);
+          result = executeChatTool(call.name, call.args, dataSource);
         } catch (err) {
           result = { error: err.message };
         }
@@ -1385,6 +1587,7 @@ app.post('/api/chat', requireAuth, async (req, res) => {
 // ── START ─────────────────────────────────────────────────────────────────────
 
 init().then(() => {
+  dia.scheduleNightlySync(db);
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`\n  haniqa running at http://localhost:${PORT}\n`));
 }).catch(err => {

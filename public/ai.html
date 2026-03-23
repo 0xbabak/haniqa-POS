@@ -266,6 +266,16 @@
       <span></span><span></span><span></span>
     </button>
     <div class="topbar-title" id="topbar-title">Analytics</div>
+    <div style="display:flex; gap:4px; align-items:center; margin-left:auto">
+      <button class="horizon-btn active" id="ai-src-pos" onclick="setAiSource('pos',this)" style="background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px">POS</button>
+      <button class="horizon-btn" id="ai-src-dia" onclick="setAiSource('dia',this)" style="background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px">DIA</button>
+    </div>
+  </div>
+  <!-- DIA STATUS BAR (analytics) -->
+  <div id="ai-dia-bar" style="display:none; align-items:center; gap:10px; padding:5px 16px; background:rgba(201,168,76,0.07); border-bottom:1px solid rgba(201,168,76,0.2); font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim)">
+    <div id="ai-dia-dot" style="width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0"></div>
+    <span id="ai-dia-txt">Checking DIA status…</span>
+    <button id="ai-dia-sync-btn" onclick="syncAndReload()" style="margin-left:auto;padding:3px 10px;font-family:'DM Mono',monospace;font-size:11px;background:transparent;border:1px solid rgba(201,168,76,0.4);color:#c9a84c;cursor:pointer;border-radius:2px">Sync &amp; Recalculate</button>
   </div>
 
   <!-- ════ ANALYTICS ════ -->
@@ -512,6 +522,63 @@ const GOLD = '#c9a84c';
 
 // ── HORIZON STATE ──
 let currentHorizon = '1w';
+let aiDataSource   = 'pos';
+
+function setAiSource(src, el) {
+  aiDataSource = src;
+  document.getElementById('ai-src-pos').classList.remove('active');
+  document.getElementById('ai-src-dia').classList.remove('active');
+  el.classList.add('active');
+  const bar = document.getElementById('ai-dia-bar');
+  if (src === 'dia') {
+    bar.style.display = 'flex';
+    refreshAiDiaStatus();
+  } else {
+    bar.style.display = 'none';
+  }
+  reloadAnalytics();
+}
+
+async function refreshAiDiaStatus() {
+  try {
+    const res  = await fetch('/api/dia/status');
+    const data = await res.json();
+    const dot  = document.getElementById('ai-dia-dot');
+    const txt  = document.getElementById('ai-dia-txt');
+    const never = !data.sales.lastSync;
+    if (never) {
+      dot.style.background = 'var(--text-dim)';
+      txt.textContent = 'Never synced — click Sync & Recalculate to load DIA data';
+    } else {
+      dot.style.background = '#4caf50';
+      const d = new Date(data.sales.lastSync + 'Z');
+      txt.textContent = `DIA — Last sync: ${d.toLocaleString()} · ${data.sales.records} sales, ${data.stock.records} stock variants`;
+    }
+  } catch (_) {}
+}
+
+async function syncAndReload() {
+  const btn = document.getElementById('ai-dia-sync-btn');
+  const txt = document.getElementById('ai-dia-txt');
+  btn.disabled = true;
+  txt.textContent = 'Syncing from DIA…';
+  document.getElementById('ai-dia-dot').style.background = 'var(--text-dim)';
+  try {
+    const res  = await fetch('/api/dia/sync', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('ai-dia-dot').style.background = '#4caf50';
+      txt.textContent = `Sync complete — ${data.stockCount} stock, ${data.salesCount} sales`;
+      await loadAnalytics();
+    } else {
+      document.getElementById('ai-dia-dot').style.background = '#f44';
+      txt.textContent = 'Sync failed: ' + (data.error || 'Unknown error');
+    }
+  } catch (err) {
+    txt.textContent = 'Sync error: ' + err.message;
+  }
+  btn.disabled = false;
+}
 
 function setHorizon(hz, btn) {
   if (hz === currentHorizon) return;
@@ -868,12 +935,13 @@ async function loadAnalytics() {
   showLoading('reorder-table', 'sell-through-list', 'top-performing-list',
               'color-performance-grid', 'forecast-table');
 
+  const src = `source=${aiDataSource}`;
   try {
     const [productsRes, colorRes, forecastRes, productionRes] = await Promise.all([
-      fetch('/api/analytics/rankings'),
-      fetch('/api/analytics/color-breakdown'),
-      fetch('/api/analytics/forecast'),
-      fetch(`/api/analytics/production-forecast?horizon=${currentHorizon}`),
+      fetch(`/api/analytics/rankings?${src}`),
+      fetch(`/api/analytics/color-breakdown?${src}`),
+      fetch(`/api/analytics/forecast?${src}`),
+      fetch(`/api/analytics/production-forecast?horizon=${currentHorizon}&${src}`),
     ]);
 
     const products       = await productsRes.json();
@@ -1098,6 +1166,7 @@ async function sendChatMessage() {
       body:    JSON.stringify({
         // Send last 20 messages to keep token usage bounded
         messages: chatHistory.slice(-20),
+        source:   aiDataSource,
       }),
     });
 

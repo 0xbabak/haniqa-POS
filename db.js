@@ -175,6 +175,41 @@ function createTables() {
       quantity       INTEGER NOT NULL,
       unit_price     REAL NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS dia_stock_cache (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      dia_key   TEXT,
+      stokkodu  TEXT,
+      stokadi   TEXT,
+      renk      TEXT,
+      beden     TEXT,
+      miktar    REAL DEFAULT 0,
+      synced_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS dia_sales_cache (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      dia_key     TEXT UNIQUE,
+      belge_no    TEXT,
+      tarih       TEXT,
+      stokkodu    TEXT,
+      stokadi     TEXT,
+      renk        TEXT,
+      beden       TEXT,
+      miktar      REAL DEFAULT 0,
+      birimfiyat  REAL DEFAULT 0,
+      toplam      REAL DEFAULT 0,
+      synced_at   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS dia_sync_log (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      sync_type    TEXT,
+      synced_at    TEXT,
+      record_count INTEGER DEFAULT 0,
+      status       TEXT DEFAULT 'ok',
+      error_msg    TEXT
+    );
   `);
 }
 

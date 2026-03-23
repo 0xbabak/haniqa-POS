@@ -363,17 +363,12 @@
     <div id="inv-controls" style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap">
       <input type="text" class="search-box" id="inv-search" placeholder="Search by name or code…"
         oninput="renderInventory()" style="flex:1; min-width:160px">
-      <button id="inv-count-btn" onclick="openStockCountModal()"
-        style="padding:7px 16px; font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.1em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; transition:all 0.2s"
-        onmouseover="this.style.borderColor='var(--accent)'; this.style.color='var(--accent)'"
-        onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-dim)'">
-        ◉ Count Mode
-      </button>
-      <button id="inv-addrem-btn" onclick="openCountEntryModal()"
-        style="padding:7px 16px; font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.1em; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; border-radius:2px; transition:all 0.2s"
-        onmouseover="this.style.borderColor='var(--pink)'; this.style.color='var(--pink)'"
-        onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-dim)'">
-        ± Add/Remove
+      <span id="inv-sync-label" style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim); white-space:nowrap"></span>
+      <button id="inv-dia-sync-btn" onclick="syncInventoryFromDIA()"
+        style="padding:7px 16px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; background:transparent; border:1px solid rgba(201,168,76,0.5); color:#c9a84c; cursor:pointer; border-radius:2px; transition:all 0.2s"
+        onmouseover="this.style.borderColor='#c9a84c'"
+        onmouseout="this.style.borderColor='rgba(201,168,76,0.5)'">
+        ⟳ Sync from DIA
       </button>
     </div>
 
@@ -382,112 +377,7 @@
   </div>
 </div>
 
-<!-- ── COUNT ENTRY MODAL ── -->
-<div class="modal-overlay" id="count-entry-modal" onclick="if(event.target===this) closeCountEntryModal()">
-  <div class="modal" style="width:560px; max-height:88vh; display:flex; flex-direction:column">
-    <div class="modal-header" style="flex-shrink:0">
-      <div>
-        <div style="font-size: 11px; letter-spacing:0.2em; color:var(--pink); text-transform:uppercase; margin-bottom:6px">Stock Adjustment</div>
-        <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)">Add / Remove Stock</div>
-      </div>
-      <button class="modal-close" onclick="closeCountEntryModal()">✕</button>
-    </div>
-    <div style="padding:20px 28px 0; flex-shrink:0">
-      <!-- Product search -->
-      <div style="margin-bottom:12px">
-        <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px; font-family:'DM Mono',monospace">Select Product</div>
-
-        <!-- Selected chip (hidden until product is chosen) -->
-        <div id="count-selected-chip" style="display:none; align-items:center; gap:10px; padding:9px 12px; background:rgba(255,105,180,0.07); border:1px solid var(--pink-dim); border-radius:3px; margin-bottom:6px">
-          <span style="font-family:'DM Mono',monospace; font-size: 11px; color:var(--text-dim); min-width:60px" id="count-chip-ref"></span>
-          <span style="font-size:12px; color:var(--text-bright); flex:1; font-weight:500" id="count-chip-name"></span>
-          <button onclick="changeCountProduct()"
-            style="background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.06em; padding:3px 10px; cursor:pointer; border-radius:2px; white-space:nowrap"
-            onmouseover="this.style.borderColor='var(--pink)'; this.style.color='var(--pink)'"
-            onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-dim)'">↺ Change</button>
-        </div>
-
-        <!-- Search + dropdown (visible until product is chosen) -->
-        <div id="count-search-area">
-          <input type="text" id="count-product-search" class="search-box"
-            placeholder="Click to search products…"
-            onfocus="openAndFilterDropdown()"
-            oninput="openAndFilterDropdown()"
-            onblur="blurCountDropdown()"
-            style="width:100%; margin-bottom:4px">
-          <div id="count-product-list"
-            style="display:none; max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:3px; background:var(--deep)">
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- Variant adjustments (shown after selecting a product) -->
-    <div id="count-variants-section" style="display:none; flex:1; overflow-y:auto; padding:0 28px">
-      <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; font-family:'DM Mono',monospace; padding-top:4px">Adjust Variants</div>
-      <div id="count-variant-rows"></div>
-    </div>
-    <div style="padding:16px 28px; flex-shrink:0; border-top:1px solid var(--border)">
-      <div class="form-actions" style="margin:0">
-        <button class="btn-primary" onclick="applyCountAdjustments()" id="add-to-panel-btn" disabled>Done</button>
-        <button class="btn-secondary" onclick="closeCountEntryModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── STOCK COUNT MODAL ── -->
-<div class="modal-overlay" id="stock-count-modal" onclick="if(event.target===this) closeStockCountModal()">
-  <div class="modal" style="width:580px; max-height:88vh; display:flex; flex-direction:column">
-    <div class="modal-header" style="flex-shrink:0">
-      <div>
-        <div style="font-size: 11px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; margin-bottom:6px">Count Mode</div>
-        <div style="font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--text-bright)">Physical Stock Count</div>
-      </div>
-      <button class="modal-close" onclick="closeStockCountModal()">✕</button>
-    </div>
-    <div style="padding:20px 28px 0; flex-shrink:0">
-      <div style="margin-bottom:12px">
-        <div style="font-size: 11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:6px; font-family:'DM Mono',monospace">Select Product</div>
-
-        <div id="sc-selected-chip" style="display:none; align-items:center; gap:10px; padding:9px 12px; background:rgba(143,184,160,0.07); border:1px solid var(--accent); border-radius:3px; margin-bottom:6px; opacity:0.85">
-          <span style="font-family:'DM Mono',monospace; font-size: 11px; color:var(--text-dim); min-width:60px" id="sc-chip-ref"></span>
-          <span style="font-size:12px; color:var(--text-bright); flex:1; font-weight:500" id="sc-chip-name"></span>
-          <button onclick="changeStockCountProduct()"
-            style="background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.06em; padding:3px 10px; cursor:pointer; border-radius:2px; white-space:nowrap"
-            onmouseover="this.style.borderColor='var(--accent)'; this.style.color='var(--accent)'"
-            onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-dim)'">↺ Change</button>
-        </div>
-
-        <div id="sc-search-area">
-          <input type="text" id="sc-product-search" class="search-box"
-            placeholder="Click to search products…"
-            onfocus="scOpenDropdown()" oninput="scOpenDropdown()" onblur="scBlurDropdown()"
-            style="width:100%; margin-bottom:4px">
-          <div id="sc-product-list"
-            style="display:none; max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:3px; background:var(--deep)">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="sc-variants-section" style="display:none; flex:1; overflow-y:auto; padding:0 28px">
-      <div style="display:grid; grid-template-columns:100px 1fr 90px 130px; gap:10px; padding:6px 12px 4px; margin-bottom:2px">
-        <span style="font-size: 10px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; font-family:'DM Mono',monospace">Color</span>
-        <span style="font-size: 10px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; font-family:'DM Mono',monospace">Size</span>
-        <span style="font-size: 10px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; font-family:'DM Mono',monospace; text-align:center">Count</span>
-        <span style="font-size: 10px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; font-family:'DM Mono',monospace">Difference</span>
-      </div>
-      <div id="sc-variant-rows" style="border:1px solid var(--border); border-radius:3px; overflow:hidden; background:var(--deep)"></div>
-    </div>
-
-    <div style="padding:16px 28px; flex-shrink:0; border-top:1px solid var(--border)">
-      <div class="form-actions" style="margin:0">
-        <button class="btn-primary" onclick="applyStockCount()" id="sc-done-btn" disabled>Done</button>
-        <button class="btn-secondary" onclick="closeStockCountModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Stock Count and Adjust modals removed — inventory is read-only, stock managed via DIA sync -->
 
 <script>
 // ── AUTH + THEME ──
@@ -1072,12 +962,50 @@ function showNotification(title, message, type = 'success') {
   }, 3000);
 }
 
+// ── DIA SYNC ──
+async function syncInventoryFromDIA() {
+  const btn = document.getElementById('inv-dia-sync-btn');
+  const lbl = document.getElementById('inv-sync-label');
+  btn.disabled = true;
+  lbl.textContent = 'Syncing…';
+  try {
+    const res  = await fetch('/api/dia/sync', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      lbl.textContent = `Synced — ${data.stockCount} variants from DIA`;
+      // Reload products to reflect new DIA stock data
+      await loadProducts();
+      renderInventory();
+    } else {
+      lbl.textContent = 'Sync failed: ' + (data.error || 'error');
+    }
+  } catch (err) {
+    lbl.textContent = 'Error: ' + err.message;
+  }
+  btn.disabled = false;
+}
+
+async function loadDIASyncStatus() {
+  try {
+    const res  = await fetch('/api/dia/status');
+    const data = await res.json();
+    const lbl  = document.getElementById('inv-sync-label');
+    if (data.stock.lastSync) {
+      const d = new Date(data.stock.lastSync + 'Z');
+      lbl.textContent = `Last DIA sync: ${d.toLocaleString()} · ${data.stock.records} variants`;
+    } else {
+      lbl.textContent = 'Never synced from DIA';
+    }
+  } catch (_) {}
+}
+
 // ── INIT ──
 window.addEventListener('load', async () => {
   await checkAuth();
   loadTheme();
   await loadProducts();
   renderInventory();
+  loadDIASyncStatus();
 });
 </script>
 </body>

@@ -696,12 +696,10 @@ function fmtMultiCurr(totals, sep = '<br>') {
 
 function renderPOSProducts() {
   const grid = document.getElementById('posProductGrid');
-  const available = products.filter(p => p.stock > 0);
-  grid.innerHTML = available.map(p => `
+  grid.innerHTML = products.map(p => `
     <div class="pos-product-item" onclick="addToCart(${p.id})">
       <div class="pos-item-name">${p.name}</div>
       <div class="pos-item-price">$${p.price}</div>
-      <div class="pos-item-stock">${p.stock} in stock</div>
     </div>
   `).join('');
 }
@@ -709,14 +707,13 @@ function renderPOSProducts() {
 function filterPOSProducts() {
   const q = document.getElementById('posSearchInput').value.toLowerCase();
   const grid = document.getElementById('posProductGrid');
-  const available = products.filter(p =>
-    p.stock > 0 && (p.name.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q))
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q)
   );
-  grid.innerHTML = available.map(p => `
+  grid.innerHTML = filtered.map(p => `
     <div class="pos-product-item" onclick="addToCart(${p.id})">
       <div class="pos-item-name">${p.name}</div>
       <div class="pos-item-price">$${p.price}</div>
-      <div class="pos-item-stock">${p.stock} in stock</div>
     </div>
   `).join('');
 }
@@ -783,7 +780,7 @@ function buildSizeOptions(product, color, channel) {
 
 function addToCart(productId) {
   const product = products.find(p => p.id === productId);
-  if (!product || product.stock <= 0) return;
+  if (!product) return;
   selectedProduct  = product;
   selectedSaleType = 'single';
 
@@ -865,7 +862,6 @@ function confirmProductSelection() {
   const channel      = selectedSaleType;
   const price        = channel === 'wholesale' ? selectedProduct.wholesalePrice : selectedProduct.price;
   const maxStock     = getVariantStock(selectedProduct, selectedColor, selectedSize, channel);
-  if (maxStock <= 0) { alert('This variant is out of stock.'); return; }
   const sizeLabel    = channel === 'single' ? `EU ${selectedSize}` : selectedSize;
   const channelLabel = channel === 'wholesale' ? ' · Wholesale' : '';
   const displayName  = `${selectedProduct.name} (${selectedColor}, ${sizeLabel}${channelLabel})`;
@@ -1559,7 +1555,7 @@ document.addEventListener('click', function(e) {
 // ── TRANSACTION EDIT / DELETE ──
 async function deleteTransaction(id, desc, isSale) {
   const msg = isSale
-    ? `Delete sale transaction "${id}"?\n\nThis will restore the stock for all items in this sale.`
+    ? `Delete sale transaction "${id}"?`
     : `Delete transaction "${id}" (${desc})?\n\nThis cannot be undone.`;
   if (!confirm(msg)) return;
   try {
@@ -1643,7 +1639,7 @@ async function saveEditTransaction() {
 }
 
 async function deleteFinalizedSale(id, desc) {
-  if (!confirm(`Delete sale "${id}"?\n\n"${desc}"\n\nThis will restore stock for all items in this sale.`)) return;
+  if (!confirm(`Delete sale "${id}"?\n\n"${desc}"`)) return;
   try {
     const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
     if (!res.ok) { const e = await res.json(); alert(e.error || 'Delete failed'); return; }
@@ -2069,7 +2065,7 @@ async function confirmFinalize() {
 }
 
 async function cancelReservedSale(id, desc) {
-  if (!confirm(`Cancel reserved sale "${id}"?\n\nThis will restore stock for all items.`)) return;
+  if (!confirm(`Cancel reserved sale "${id}"?`)) return;
   try {
     const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
     if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed to cancel'); return; }

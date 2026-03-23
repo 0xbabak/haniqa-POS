@@ -23,6 +23,49 @@
   }
   .ch-btn:hover { border-color: var(--pink-dim); color: var(--text); }
   .ch-btn.active { background: var(--pink); border-color: var(--pink); color: #0a0a09; font-weight: 500; }
+  .src-btn {
+    padding: 5px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.18s;
+  }
+  .src-btn:hover { border-color: var(--gold, #c9a84c); color: var(--text); }
+  .src-btn.active { background: var(--gold, #c9a84c); border-color: var(--gold, #c9a84c); color: #0a0a09; font-weight: 500; }
+  .dia-status-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px;
+    background: rgba(201,168,76,0.07);
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .dia-status-bar.visible { display: flex; }
+  .dia-sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+  .dia-sync-dot.synced { background: #4caf50; }
+  .dia-sync-dot.error  { background: #f44; }
+  .dia-sync-btn {
+    margin-left: auto;
+    padding: 3px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    background: transparent;
+    border: 1px solid rgba(201,168,76,0.4);
+    color: var(--gold, #c9a84c);
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .dia-sync-btn:hover { background: rgba(201,168,76,0.1); }
+  .dia-sync-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .date-input {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -113,11 +156,25 @@
       <span></span><span></span><span></span>
     </button>
     <div class="topbar-title">Dashboard</div>
-    <div style="display:flex; gap:4px; align-items:center">
-      <button class="ch-btn active" id="ch-both"       onclick="setChannel('both',this)">Both</button>
-      <button class="ch-btn"        id="ch-wholesale"  onclick="setChannel('wholesale',this)">Wholesale</button>
-      <button class="ch-btn"        id="ch-single"     onclick="setChannel('single',this)">Single</button>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+      <div style="display:flex; gap:4px; align-items:center" id="channel-toggle-group">
+        <button class="ch-btn active" id="ch-both"       onclick="setChannel('both',this)">Both</button>
+        <button class="ch-btn"        id="ch-wholesale"  onclick="setChannel('wholesale',this)">Wholesale</button>
+        <button class="ch-btn"        id="ch-single"     onclick="setChannel('single',this)">Single</button>
+      </div>
+      <div style="width:1px; height:18px; background:var(--border); margin:0 2px"></div>
+      <div style="display:flex; gap:4px; align-items:center">
+        <button class="src-btn active" id="src-pos" onclick="setSource('pos',this)">POS</button>
+        <button class="src-btn"        id="src-dia" onclick="setSource('dia',this)">DIA</button>
+      </div>
     </div>
+  </div>
+
+  <!-- DIA STATUS BAR -->
+  <div class="dia-status-bar" id="dia-status-bar">
+    <div class="dia-sync-dot" id="dia-sync-dot"></div>
+    <span id="dia-status-text">Checking DIA sync status…</span>
+    <button class="dia-sync-btn" id="dia-sync-btn" onclick="syncDIA()">Sync Now</button>
   </div>
 
   <!-- ════ DASHBOARD ════ -->
@@ -268,6 +325,66 @@ let MONTHS          = [];
 let MONTHLY_UNITS   = [];
 let MONTHLY_REVENUE = [];
 let currentChannel  = 'both';
+let currentSource   = 'pos';
+
+// ── SOURCE TOGGLE ──
+function setSource(src, el) {
+  currentSource = src;
+  document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const bar = document.getElementById('dia-status-bar');
+  const chGroup = document.getElementById('channel-toggle-group');
+  if (src === 'dia') {
+    bar.classList.add('visible');
+    chGroup.style.display = 'none';
+    refreshDIAStatus();
+  } else {
+    bar.classList.remove('visible');
+    chGroup.style.display = '';
+  }
+  loadDashboard();
+}
+
+async function refreshDIAStatus() {
+  try {
+    const res  = await fetch('/api/dia/status');
+    const data = await res.json();
+    const dot  = document.getElementById('dia-sync-dot');
+    const txt  = document.getElementById('dia-status-text');
+    const never = !data.sales.lastSync;
+    if (never) {
+      dot.className = 'dia-sync-dot';
+      txt.textContent = 'Never synced — click Sync Now to load DIA data';
+    } else {
+      dot.className = 'dia-sync-dot synced';
+      const d = new Date(data.sales.lastSync + 'Z');
+      txt.textContent = `DIA — Last sync: ${d.toLocaleString()}  ·  ${data.sales.records} sales  ·  ${data.stock.records} stock variants`;
+    }
+  } catch (_) {}
+}
+
+async function syncDIA() {
+  const btn = document.getElementById('dia-sync-btn');
+  const txt = document.getElementById('dia-status-text');
+  btn.disabled = true;
+  txt.textContent = 'Syncing from DIA…';
+  try {
+    const res  = await fetch('/api/dia/sync', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      txt.textContent = `Sync complete — ${data.stockCount} stock variants, ${data.salesCount} sales`;
+      document.getElementById('dia-sync-dot').className = 'dia-sync-dot synced';
+      await loadDashboard();
+    } else {
+      txt.textContent = 'Sync failed: ' + (data.error || 'Unknown error');
+      document.getElementById('dia-sync-dot').className = 'dia-sync-dot error';
+    }
+  } catch (err) {
+    txt.textContent = 'Sync error: ' + err.message;
+    document.getElementById('dia-sync-dot').className = 'dia-sync-dot error';
+  }
+  btn.disabled = false;
+}
 
 // ── CHANNEL TOGGLE ──
 function setChannel(ch, el) {
@@ -454,18 +571,19 @@ function closeModal(e) {
 
 // ── LOAD DASHBOARD ──
 async function loadDashboard() {
-  const ch   = currentChannel;
+  const ch  = currentSource === 'dia' ? 'both' : currentChannel;
+  const src = currentSource;
   const from = document.getElementById('date-from').value;
   const to   = document.getElementById('date-to').value;
 
-  let monthlyUrl = `/api/dashboard/monthly?channel=${ch}`;
+  let monthlyUrl = `/api/dashboard/monthly?channel=${ch}&source=${src}`;
   if (from) monthlyUrl += `&from=${from}`;
   if (to)   monthlyUrl += `&to=${to}`;
 
   try {
     const [statsRes, topRes, monthlyRes] = await Promise.all([
-      fetch(`/api/dashboard/stats?channel=${ch}`),
-      fetch(`/api/dashboard/top-sellers?channel=${ch}`),
+      fetch(`/api/dashboard/stats?channel=${ch}&source=${src}`),
+      fetch(`/api/dashboard/top-sellers?channel=${ch}&source=${src}`),
       fetch(monthlyUrl),
     ]);
     const stats    = await statsRes.json();
