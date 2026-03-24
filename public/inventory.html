@@ -9,281 +9,50 @@
 <link rel="stylesheet" href="styles.css">
 <style>
   .inv-product-block {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     border: 1px solid var(--border);
     border-radius: 4px;
     overflow: hidden;
   }
-  .inv-product-header {
-    display: flex;
+  .inv-product-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 160px 90px;
     align-items: center;
-    gap: 10px;
+    gap: 0;
     padding: 9px 14px;
     background: var(--card);
-    border-bottom: 1px solid var(--border);
   }
   .inv-ref {
     font-family: 'DM Mono', monospace;
     font-size: 11px;
     letter-spacing: 0.1em;
     color: var(--text-dim);
-    min-width: 70px;
   }
   .inv-name {
     font-size: 12px;
     color: var(--text-bright);
     font-weight: 500;
-    flex: 1;
   }
-  .inv-channel-row {
-    display: grid;
-    grid-template-columns: 28px 80px 1fr 100px 60px;
-    align-items: center;
-    gap: 0;
-    padding: 7px 14px;
-    background: var(--deep);
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    cursor: default;
-  }
-  .inv-channel-row:last-child { border-bottom: none; }
-  .inv-channel-row.single-row { border-left: 2px solid var(--pink-dim); }
-  .inv-channel-row.wholesale-row { border-left: 2px solid var(--gold, #c9a84c); }
-  .inv-expand-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 2px;
-    transition: color 0.15s;
-    line-height: 1;
-  }
-  .inv-expand-btn:hover { color: var(--text-bright); }
-  .inv-expand-btn.expanded { color: var(--pink); }
-  .inv-channel-label {
+  .inv-category {
     font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-family: 'DM Mono', monospace;
-    padding: 2px 6px;
-    border-radius: 2px;
-    white-space: nowrap;
-  }
-  .inv-channel-label.single { color: var(--pink); background: rgba(255,105,180,0.08); }
-  .inv-channel-label.wholesale { color: var(--gold, #c9a84c); background: rgba(201,168,76,0.08); }
-  .inv-channel-stock {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    color: var(--text);
-    padding-left: 12px;
-  }
-  .inv-channel-units {
-    font-size: 12px;
     color: var(--text-dim);
     font-family: 'DM Mono', monospace;
     text-align: right;
+    padding-right: 16px;
   }
-  .inv-variants-container {
-    background: var(--bg);
-    border-top: 1px dashed var(--border);
-  }
-  .inv-variant-row {
-    display: grid;
-    grid-template-columns: 28px 80px 120px 1fr 80px 60px;
-    align-items: center;
-    padding: 5px 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-  .inv-variant-row:last-child { border-bottom: none; }
-  .inv-v-color {
-    grid-column: 2;
+  .inv-stock {
     font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-  .inv-v-size {
-    grid-column: 3;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-  }
-  .inv-v-stock {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    color: var(--text-bright);
-    text-align: right;
-  }
-  .inv-v-stock.zero { color: var(--red); opacity: 0.6; }
-  .inv-v-stock.low { color: var(--gold, #c9a84c); }
-
-  .count-delta-badge {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    padding: 2px 7px;
-    border-radius: 2px;
-    min-width: 42px;
-    text-align: center;
-  }
-  .count-delta-badge.pos { background: rgba(143,184,160,0.18); color: var(--accent); }
-  .count-delta-badge.neg { background: rgba(220,80,80,0.12); color: var(--red); }
-
-  /* Count Modal */
-  .count-product-option {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 13px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    transition: background 0.1s;
-  }
-  .count-product-option:hover { background: var(--card); }
-  .count-product-option.selected { background: rgba(255,105,180,0.1); }
-  .count-product-option:last-child { border-bottom: none; }
-
-  .count-variant-adj {
-    display: grid;
-    grid-template-columns: 100px 1fr 120px auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-  }
-  .count-variant-adj:last-child { border-bottom: none; }
-  .adj-stock-col {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-family: 'DM Mono', monospace;
-    white-space: nowrap;
-  }
-  .adj-stock-now {
-    font-size: 12px;
-    color: var(--text-bright);
-  }
-  .adj-stock-arrow {
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-  .adj-stock-new {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
-  }
-  .adj-controls {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .adj-btn {
-    width: 26px; height: 26px;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--text);
-    font-size: 14px;
-    cursor: pointer;
-    border-radius: 2px;
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.15s, color 0.15s;
-    line-height: 1;
-  }
-  .adj-btn:hover { border-color: var(--pink); color: var(--pink); }
-  .adj-delta-display {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    min-width: 32px;
-    text-align: center;
-    color: var(--text-bright);
-  }
-  .adj-delta-display.pos { color: var(--accent); }
-  .adj-delta-display.neg { color: var(--red); }
-  .adj-stock-info {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
     text-align: right;
-  }
-
-  /* Stock Count Mode rows */
-  .count-mode-row {
-    display: grid;
-    grid-template-columns: 100px 1fr 90px 130px;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .count-mode-row:last-child { border-bottom: none; }
-  .count-input {
-    padding: 5px 8px;
-    background: var(--card);
-    border: 1px solid var(--border);
     color: var(--text-bright);
-    font-family: 'DM Mono', monospace;
-    font-size: 14px;
-    border-radius: 2px;
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-    transition: border-color 0.15s, background 0.15s;
   }
-  .count-input:focus { outline: none; border-color: var(--pink); }
-  .count-input.changed-up   { border-color: var(--accent); background: rgba(143,184,160,0.07); }
-  .count-input.changed-down { border-color: var(--red);    background: rgba(220,80,80,0.07); }
-  .count-diff-cell { font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.6; }
+  .inv-stock.zero { color: var(--red); opacity: 0.6; }
+  .inv-stock.low  { color: var(--gold, #c9a84c); }
 
-  /* ── MOBILE ── */
-  @media (max-width: 768px) {
-    /* Controls bar: search full-width, buttons side by side below */
-    #inv-controls {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr;
-      grid-template-areas:
-        "search  search"
-        "count   addrem";
-      gap: 8px;
-      align-items: center;
-    }
-    #inv-search     { grid-area: search; width: 100% !important; min-width: 0 !important; }
-    #inv-count-btn  { grid-area: count; }
-    #inv-addrem-btn { grid-area: addrem; }
-
-    /* Compact action buttons */
-    #inv-count-btn, #inv-addrem-btn {
-      padding: 10px 8px !important;
-      font-size: 11px !important;
-      text-align: center;
-      width: 100%;
-    }
-
-    /* Wrap the whole inventory list in horizontal scroll */
-    #inventoryTable {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    /* Enforce a minimum width so rows don't crush */
-    .inv-product-block {
-      min-width: 520px;
-    }
-
-    /* Product header: allow wrap for name */
-    .inv-product-header { flex-wrap: wrap; }
-
-    /* Count variant adj: stack label + controls vertically */
-    .count-variant-adj {
-      grid-template-columns: 1fr auto;
-      row-gap: 4px;
-    }
-    .adj-stock-col { grid-column: 1 / -1; }
-
-    /* Count mode rows: 3 columns, diff wraps below */
-    .count-mode-row {
-      grid-template-columns: 90px 1fr 70px;
-    }
-    .count-diff-cell { grid-column: 1 / -1; font-size: 11px; }
+  @media (max-width: 600px) {
+    .inv-product-row { grid-template-columns: 80px 1fr 70px; }
+    .inv-category { display: none; }
   }
 </style>
 </head>
@@ -327,9 +96,6 @@
     <div class="nav-item" onclick="window.location='catalogue.html'">
       <span class="nav-icon">◫</span> All Products
     </div>
-    <div class="nav-item" onclick="window.location='catalogue.html#add'">
-      <span class="nav-icon">+</span> Add Product
-    </div>
     <div class="nav-item active">
       <span class="nav-icon">◧</span> Inventory
     </div>
@@ -354,13 +120,13 @@
 
   <div class="page active" id="page-inventory" style="padding-bottom: 40px">
     <div class="section-head">
-      <div class="section-title">Inventory</div>
+      <div class="section-title">Wholesale Inventory</div>
       <div class="section-line"></div>
       <div class="section-meta" id="inv-count-label">— products</div>
     </div>
 
     <!-- Controls -->
-    <div id="inv-controls" style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap">
       <input type="text" class="search-box" id="inv-search" placeholder="Search by name or code…"
         oninput="renderInventory()" style="flex:1; min-width:160px">
       <span id="inv-sync-label" style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim); white-space:nowrap"></span>
@@ -372,12 +138,18 @@
       </button>
     </div>
 
+    <!-- Column header -->
+    <div style="display:grid; grid-template-columns:100px 1fr 160px 90px; padding:4px 14px; margin-bottom:4px">
+      <span style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.12em; color:var(--text-dim); text-transform:uppercase">Code</span>
+      <span style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.12em; color:var(--text-dim); text-transform:uppercase">Product</span>
+      <span style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.12em; color:var(--text-dim); text-transform:uppercase; text-align:right; padding-right:16px">Category</span>
+      <span style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.12em; color:var(--text-dim); text-transform:uppercase; text-align:right">Stock</span>
+    </div>
+
     <!-- Inventory Table -->
     <div id="inventoryTable"></div>
   </div>
 </div>
-
-<!-- Stock Count and Adjust modals removed — inventory is read-only, stock managed via DIA sync -->
 
 <script>
 // ── AUTH + THEME ──
@@ -397,7 +169,6 @@ function toggleTheme() {
   document.getElementById('theme-text').textContent = isLight ? 'Dark Mode' : 'Light Mode';
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
 }
-
 function toggleSidebar() {
   const s = document.querySelector('.sidebar');
   const o = document.getElementById('sidebar-overlay');
@@ -412,7 +183,6 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('open');
   document.getElementById('hamburger-btn').classList.remove('open');
 }
-
 function loadTheme() {
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light-theme');
@@ -422,44 +192,39 @@ function loadTheme() {
 }
 
 // ── STATE ──
-let allProducts         = [];
-let channelFilter       = 'both';
-let expandedRows        = new Set(); // "productId-channel"
-let countModalProductId = null;
-let countModalDeltas    = {}; // "color|size|channel" -> delta
+let allProducts = [];
 
 // ── DATA ──
-// Tries DIA stock cache first; falls back to local products if cache is empty.
 async function loadProducts() {
   try {
-    const diaRes  = await fetch('/api/dia/inventory');
-    if (diaRes.ok) {
-      const diaData = await diaRes.json();
-      if (diaData.products && diaData.products.length > 0) {
-        allProducts = diaData.products;
+    const res  = await fetch('/api/dia/inventory');
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+    if (res.ok) {
+      const data = await res.json();
+      if (data.products && data.products.length > 0) {
+        allProducts = data.products;
         const lbl = document.getElementById('inv-sync-label');
-        if (lbl && diaData.syncedAt) {
-          const d = new Date(diaData.syncedAt + 'Z');
-          lbl.textContent = `DIA stock · ${diaData.total} products · synced ${d.toLocaleString()}`;
+        if (lbl && data.syncedAt) {
+          const d = new Date(data.syncedAt + 'Z');
+          lbl.textContent = `DIA · ${data.total} products · synced ${d.toLocaleString()}`;
         }
         return;
       }
     }
   } catch (_) {}
-  // Fallback to local products
-  const res = await fetch('/api/products');
-  if (!res.ok) { window.location.href = '/login.html'; return; }
-  allProducts = await res.json();
+  const lbl = document.getElementById('inv-sync-label');
+  if (lbl) lbl.textContent = 'Not synced — click Sync from DIA';
 }
 
-// ── INVENTORY RENDER ──
+// ── RENDER ──
 function renderInventory() {
-  const q        = (document.getElementById('inv-search').value || '').toLowerCase();
+  const q = (document.getElementById('inv-search').value || '').toLowerCase();
   const filtered = allProducts.filter(p =>
     p.name.toLowerCase().includes(q) || (p.ref || '').toLowerCase().includes(q)
   );
 
-  document.getElementById('inv-count-label').textContent = `${filtered.length} product${filtered.length !== 1 ? 's' : ''}`;
+  document.getElementById('inv-count-label').textContent =
+    `${filtered.length} product${filtered.length !== 1 ? 's' : ''}`;
 
   if (filtered.length === 0) {
     document.getElementById('inventoryTable').innerHTML =
@@ -467,543 +232,32 @@ function renderInventory() {
     return;
   }
 
-  document.getElementById('inventoryTable').innerHTML = filtered.map(p => buildProductBlock(p)).join('');
-}
-
-function buildProductBlock(p) {
-  const variants    = p.variants || [];
-  const singleVars  = variants.filter(v => v.channel === 'single');
-  const wsVars      = variants.filter(v => v.channel === 'wholesale');
-  const singleStock = singleVars.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
-  const wsStock     = wsVars.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
-
-  const showSingle    = channelFilter === 'both' || channelFilter === 'single';
-  const showWholesale = channelFilter === 'both' || channelFilter === 'wholesale';
-
-  const singleRow    = showSingle    ? buildChannelRow(p, 'single',    singleVars, singleStock) : '';
-  const wsRow        = showWholesale ? buildChannelRow(p, 'wholesale', wsVars,     wsStock)     : '';
-
-  if (!singleRow && !wsRow) return '';
-
-  return `
-    <div class="inv-product-block">
-      <div class="inv-product-header">
-        <span class="inv-ref">${p.ref || '—'}</span>
-        <span class="inv-name">${p.name}</span>
-        <span style="font-size: 11px; color:var(--text-dim); font-family:'DM Mono',monospace">${p.category || ''}</span>
-      </div>
-      ${singleRow}
-      ${wsRow}
-    </div>`;
-}
-
-function buildChannelRow(p, channel, variants, totalStock) {
-  const key      = `${p.id}-${channel}`;
-  const expanded = expandedRows.has(key);
-  const label    = channel === 'single' ? 'Single Sale' : 'Wholesale';
-  const labelCls = channel === 'single' ? 'single' : 'wholesale';
-  const rowCls   = channel === 'single' ? 'single-row' : 'wholesale-row';
-  const icon     = expanded ? '▼' : '▶';
-  const stockCls = totalStock === 0 ? 'style="color:var(--red); opacity:0.7"' : totalStock <= 3 ? 'style="color:var(--gold,#c9a84c)"' : '';
-
-  const variantBlock = expanded ? buildVariantRows(variants, channel) : '';
-
-  return `
-    <div class="inv-channel-row ${rowCls}" style="cursor:pointer" onclick="toggleExpand('${p.id}', '${channel}')">
-      <button class="inv-expand-btn ${expanded ? 'expanded' : ''}" onclick="event.stopPropagation(); toggleExpand('${p.id}', '${channel}')">${icon}</button>
-      <span class="inv-channel-label ${labelCls}">${label}</span>
-      <span class="inv-channel-stock" ${stockCls}>${totalStock} units</span>
-      <span class="inv-channel-units" style="color:var(--text-dim); font-size: 11px">${variants.length} variant${variants.length !== 1 ? 's' : ''}</span>
-      <span></span>
-    </div>
-    ${variantBlock ? `<div class="inv-variants-container">${variantBlock}</div>` : ''}`;
-}
-
-function buildVariantRows(variants, channel) {
-  if (variants.length === 0) {
-    return `<div style="padding:10px 14px 10px 56px; font-size: 12px; color:var(--text-dim); font-family:'DM Mono',monospace">No variants configured</div>`;
-  }
-  // DIA product-level stock: single variant with marker '__dia__'
-  if (variants.length === 1 && variants[0].color === '__dia__') {
-    const stock    = parseFloat(variants[0].stock) || 0;
+  document.getElementById('inventoryTable').innerHTML = filtered.map(p => {
+    const stock    = parseFloat(p.stock) || 0;
     const stockCls = stock === 0 ? 'zero' : stock < 10 ? 'low' : '';
     return `
-      <div class="inv-variant-row">
-        <span></span>
-        <span class="inv-v-color" style="color:var(--text-dim); font-size:11px">DIA real stock</span>
-        <span class="inv-v-size"></span>
-        <span></span>
-        <span class="inv-v-stock ${stockCls}" style="text-align:right; padding-right:8px; font-size:14px; font-weight:600">${stock}</span>
-        <span></span>
-      </div>`;
-  }
-  const sizeLabel = s => channel === 'single' ? `EU ${s}` : s;
-  return variants.map(v => {
-    const stock    = parseInt(v.stock) || 0;
-    const stockCls = stock === 0 ? 'zero' : stock <= 2 ? 'low' : '';
-    return `
-      <div class="inv-variant-row">
-        <span></span>
-        <span class="inv-v-color">${v.color || '—'}</span>
-        <span class="inv-v-size" style="color:var(--text)">${sizeLabel(v.size)}</span>
-        <span></span>
-        <span class="inv-v-stock ${stockCls}" style="text-align:right; padding-right:8px">${stock}</span>
-        <span></span>
-      </div>`;
-  }).join('');
-}
-
-function toggleExpand(productId, channel) {
-  const key = `${productId}-${channel}`;
-  if (expandedRows.has(key)) expandedRows.delete(key);
-  else expandedRows.add(key);
-  renderInventory();
-}
-
-function setChannelFilter(filter, btn) {
-  channelFilter = filter;
-  ['both', 'single', 'wholesale'].forEach(f => {
-    const el = document.getElementById(`inv-f-${f}`);
-    if (el) el.classList.toggle('active', f === filter);
-  });
-  renderInventory();
-}
-
-// ── HELPERS ──
-function safeId(str) { return str.replace(/[^a-z0-9]/gi, '_'); }
-
-// ── COUNT MODE ──
-
-// ── COUNT ENTRY MODAL ──
-function openCountEntryModal() {
-  countModalProductId = null;
-  countModalDeltas    = {};
-  document.getElementById('count-product-search').value = '';
-  document.getElementById('count-product-list').style.display  = 'none';
-  document.getElementById('count-product-list').innerHTML      = '';
-  document.getElementById('count-selected-chip').style.display = 'none';
-  document.getElementById('count-search-area').style.display   = 'block';
-  document.getElementById('count-variants-section').style.display = 'none';
-  document.getElementById('add-to-panel-btn').disabled = true;
-  document.getElementById('count-entry-modal').classList.add('open');
-}
-
-function closeCountEntryModal() {
-  document.getElementById('count-entry-modal').classList.remove('open');
-  countModalProductId = null;
-  countModalDeltas    = {};
-}
-
-function openAndFilterDropdown() {
-  document.getElementById('count-product-list').style.display = 'block';
-  filterCountProductList();
-}
-
-function blurCountDropdown() {
-  // Delay so a click on a list item registers before the list hides
-  setTimeout(() => {
-    const list = document.getElementById('count-product-list');
-    if (list) list.style.display = 'none';
-  }, 200);
-}
-
-function changeCountProduct() {
-  countModalProductId = null;
-  countModalDeltas    = {};
-  document.getElementById('count-selected-chip').style.display    = 'none';
-  document.getElementById('count-search-area').style.display      = 'block';
-  document.getElementById('count-product-search').value           = '';
-  document.getElementById('count-product-list').style.display     = 'none';
-  document.getElementById('count-variants-section').style.display = 'none';
-  document.getElementById('add-to-panel-btn').disabled = true;
-  setTimeout(() => document.getElementById('count-product-search').focus(), 50);
-}
-
-function filterCountProductList() {
-  const q   = (document.getElementById('count-product-search').value || '').toLowerCase();
-  const el  = document.getElementById('count-product-list');
-  const matches = allProducts.filter(p =>
-    p.name.toLowerCase().includes(q) || (p.ref || '').toLowerCase().includes(q)
-  );
-
-  if (matches.length === 0) {
-    el.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-dim); font-size: 12px">No products found</div>`;
-    return;
-  }
-
-  el.innerHTML = matches.map(p => `
-    <div class="count-product-option ${p.id === countModalProductId ? 'selected' : ''}"
-      onclick="selectCountProduct(${p.id})">
-      <span style="font-family:'DM Mono',monospace; font-size: 11px; color:var(--text-dim); min-width:60px">${p.ref || '—'}</span>
-      <span style="color:var(--text-bright); font-size: 13px">${p.name}</span>
-    </div>`).join('');
-}
-
-function selectCountProduct(productId) {
-  countModalProductId = productId;
-  countModalDeltas    = {};
-
-  const product = allProducts.find(p => p.id === productId);
-  if (!product) return;
-
-  // Hide dropdown, show selected chip
-  document.getElementById('count-product-list').style.display  = 'none';
-  document.getElementById('count-search-area').style.display   = 'none';
-  const chip = document.getElementById('count-selected-chip');
-  chip.style.display = 'flex';
-  document.getElementById('count-chip-ref').textContent  = product.ref || '—';
-  document.getElementById('count-chip-name').textContent = product.name;
-
-  const section = document.getElementById('count-variants-section');
-  const rows    = document.getElementById('count-variant-rows');
-
-  if (!product.variants || product.variants.length === 0) {
-    rows.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-dim); font-size: 12px; font-family:'DM Mono',monospace">No variants configured for this product</div>`;
-    section.style.display = 'block';
-    document.getElementById('add-to-panel-btn').disabled = false;
-    return;
-  }
-
-  rows.innerHTML = product.variants.map(v => {
-    const key     = `${v.color}|${v.size}|${v.channel}`;
-    const safeKey = safeId(key);
-    const stock   = parseInt(v.stock) || 0;
-    const chLabel = v.channel === 'single' ? 'Single' : 'WS';
-    const sizeStr = v.channel === 'single' ? `EU ${v.size}` : v.size;
-    const chColor = v.channel === 'single' ? 'var(--pink)' : 'var(--gold,#c9a84c)';
-    return `
-      <div class="count-variant-adj" id="adj-row-${safeKey}">
-        <span style="font-family:'DM Mono',monospace; font-size: 12px; color:var(--text)">${v.color}</span>
-        <span style="font-size: 12px; color:var(--text)">${sizeStr}
-          <span style="font-size: 10px; font-family:'DM Mono',monospace; color:${chColor}; margin-left:5px; letter-spacing:0.06em">${chLabel}</span>
-        </span>
-        <div class="adj-controls">
-          <button class="adj-btn" onclick="adjustDelta('${v.color}','${v.size}','${v.channel}', -1)">−</button>
-          <span class="adj-delta-display" id="delta-${safeKey}">0</span>
-          <button class="adj-btn" onclick="adjustDelta('${v.color}','${v.size}','${v.channel}', 1)">+</button>
+      <div class="inv-product-block">
+        <div class="inv-product-row">
+          <span class="inv-ref">${p.ref || '—'}</span>
+          <span class="inv-name">${p.name}</span>
+          <span class="inv-category">${p.category || ''}</span>
+          <span class="inv-stock ${stockCls}">${stock % 1 === 0 ? stock : stock.toFixed(1)}</span>
         </div>
-        <span class="adj-stock-col" id="stock-info-${safeKey}" data-stock="${stock}">
-          <span class="adj-stock-now" id="stock-now-${safeKey}">${stock}</span>
-          <span class="adj-stock-arrow" id="stock-arrow-${safeKey}" style="display:none">→</span>
-          <span class="adj-stock-new"  id="stock-new-${safeKey}"  style="display:none">${stock}</span>
-          <span style="font-size: 10px; color:var(--text-dim); font-family:'DM Mono',monospace; margin-left:1px">units</span>
-        </span>
       </div>`;
   }).join('');
-
-  section.style.display = 'block';
-  document.getElementById('add-to-panel-btn').disabled = false;
-}
-
-function adjustDelta(color, size, channel, change) {
-  const key     = `${color}|${size}|${channel}`;
-  const safeKey = safeId(key);
-  countModalDeltas[key] = (countModalDeltas[key] || 0) + change;
-  const delta = countModalDeltas[key];
-  const sign  = delta > 0 ? '+' : '';
-
-  // Update delta badge
-  const deltaEl = document.getElementById(`delta-${safeKey}`);
-  if (deltaEl) {
-    deltaEl.textContent = `${sign}${delta}`;
-    deltaEl.className   = `adj-delta-display ${delta > 0 ? 'pos' : delta < 0 ? 'neg' : ''}`;
-  }
-
-  // Update projected stock display
-  const stockInfoEl = document.getElementById(`stock-info-${safeKey}`);
-  const arrowEl     = document.getElementById(`stock-arrow-${safeKey}`);
-  const newEl       = document.getElementById(`stock-new-${safeKey}`);
-  if (stockInfoEl && arrowEl && newEl) {
-    const baseStock = parseInt(stockInfoEl.dataset.stock) || 0;
-    const newStock  = Math.max(0, baseStock + delta);
-    if (delta === 0) {
-      arrowEl.style.display = 'none';
-      newEl.style.display   = 'none';
-    } else {
-      arrowEl.style.display = 'inline';
-      newEl.style.display   = 'inline';
-      newEl.textContent     = newStock;
-      newEl.style.color     = newStock > baseStock ? 'var(--accent)' : 'var(--red)';
-    }
-  }
-}
-
-async function applyCountAdjustments() {
-  if (!countModalProductId) return;
-  const product = allProducts.find(p => p.id === countModalProductId);
-  if (!product) return;
-
-  const entries = [];
-  for (const [key, delta] of Object.entries(countModalDeltas)) {
-    if (delta === 0) continue;
-    const [color, size, channel] = key.split('|');
-    entries.push({ productId: product.id, color, size, channel, delta });
-  }
-
-  if (entries.length === 0) {
-    alert('No adjustments made — change at least one variant before confirming.');
-    return;
-  }
-
-  const lines = entries.map(e => {
-    const sizeStr = e.channel === 'single' ? `EU ${e.size}` : e.size;
-    const sign    = e.delta > 0 ? '+' : '';
-    return `  ${sign}${e.delta}  ${e.color}, ${sizeStr} (${e.channel === 'single' ? 'Single' : 'Wholesale'})`;
-  }).join('\n');
-
-  if (!confirm(`Apply these stock adjustments to ${product.name}?\n\n${lines}`)) return;
-
-  const btn = document.getElementById('add-to-panel-btn');
-  btn.disabled    = true;
-  btn.textContent = 'Saving…';
-  try {
-    const res = await fetch('/api/inventory/adjust', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ adjustments: entries }),
-    });
-    if (!res.ok) throw new Error('Server error');
-    closeCountEntryModal();
-    await loadProducts();
-    renderInventory();
-    showNotification('Stock Updated', `Adjustments applied to ${product.name}.`, 'success');
-  } catch (err) {
-    showNotification('Error', 'Failed to apply adjustments. Please try again.', 'error');
-  } finally {
-    btn.disabled    = false;
-    btn.textContent = 'Done';
-  }
-}
-
-// ── STOCK COUNT MODAL ──
-let scProductId = null;
-
-function openStockCountModal() {
-  scProductId = null;
-  document.getElementById('sc-product-search').value           = '';
-  document.getElementById('sc-product-list').style.display     = 'none';
-  document.getElementById('sc-product-list').innerHTML         = '';
-  document.getElementById('sc-selected-chip').style.display    = 'none';
-  document.getElementById('sc-search-area').style.display      = 'block';
-  document.getElementById('sc-variants-section').style.display = 'none';
-  document.getElementById('sc-done-btn').disabled = true;
-  document.getElementById('stock-count-modal').classList.add('open');
-}
-
-function closeStockCountModal() {
-  document.getElementById('stock-count-modal').classList.remove('open');
-  scProductId = null;
-}
-
-function scOpenDropdown() {
-  document.getElementById('sc-product-list').style.display = 'block';
-  scFilterProductList();
-}
-
-function scBlurDropdown() {
-  setTimeout(() => {
-    const list = document.getElementById('sc-product-list');
-    if (list) list.style.display = 'none';
-  }, 200);
-}
-
-function changeStockCountProduct() {
-  scProductId = null;
-  document.getElementById('sc-selected-chip').style.display    = 'none';
-  document.getElementById('sc-search-area').style.display      = 'block';
-  document.getElementById('sc-product-search').value           = '';
-  document.getElementById('sc-product-list').style.display     = 'none';
-  document.getElementById('sc-variants-section').style.display = 'none';
-  document.getElementById('sc-done-btn').disabled = true;
-  setTimeout(() => document.getElementById('sc-product-search').focus(), 50);
-}
-
-function scFilterProductList() {
-  const q       = (document.getElementById('sc-product-search').value || '').toLowerCase();
-  const el      = document.getElementById('sc-product-list');
-  const matches = allProducts.filter(p =>
-    p.name.toLowerCase().includes(q) || (p.ref || '').toLowerCase().includes(q)
-  );
-  if (matches.length === 0) {
-    el.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-dim); font-size: 12px">No products found</div>`;
-    return;
-  }
-  el.innerHTML = matches.map(p => `
-    <div class="count-product-option ${p.id === scProductId ? 'selected' : ''}"
-      onclick="selectStockCountProduct(${p.id})">
-      <span style="font-family:'DM Mono',monospace; font-size: 11px; color:var(--text-dim); min-width:60px">${p.ref || '—'}</span>
-      <span style="color:var(--text-bright); font-size: 13px">${p.name}</span>
-    </div>`).join('');
-}
-
-function selectStockCountProduct(productId) {
-  scProductId = productId;
-
-  const product = allProducts.find(p => p.id === productId);
-  if (!product) return;
-
-  document.getElementById('sc-product-list').style.display  = 'none';
-  document.getElementById('sc-search-area').style.display   = 'none';
-  const chip = document.getElementById('sc-selected-chip');
-  chip.style.display = 'flex';
-  document.getElementById('sc-chip-ref').textContent  = product.ref || '—';
-  document.getElementById('sc-chip-name').textContent = product.name;
-
-  const section = document.getElementById('sc-variants-section');
-  const rows    = document.getElementById('sc-variant-rows');
-
-  if (!product.variants || product.variants.length === 0) {
-    rows.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-dim); font-size: 12px; font-family:'DM Mono',monospace">No variants configured for this product</div>`;
-    section.style.display = 'block';
-    document.getElementById('sc-done-btn').disabled = false;
-    return;
-  }
-
-  rows.innerHTML = product.variants.map(v => {
-    const key     = `${v.color}|${v.size}|${v.channel}`;
-    const safeKey = safeId(key);
-    const stock   = parseInt(v.stock) || 0;
-    const chLabel = v.channel === 'single' ? 'Single' : 'WS';
-    const sizeStr = v.channel === 'single' ? `EU ${v.size}` : v.size;
-    const chColor = v.channel === 'single' ? 'var(--pink)' : 'var(--gold,#c9a84c)';
-    return `
-      <div class="count-mode-row">
-        <span style="font-family:'DM Mono',monospace; font-size: 12px; color:var(--text)">${v.color}</span>
-        <span style="font-size: 12px; color:var(--text)">${sizeStr}
-          <span style="font-size: 10px; font-family:'DM Mono',monospace; color:${chColor}; margin-left:5px; letter-spacing:0.06em">${chLabel}</span>
-        </span>
-        <input type="number" class="count-input" id="sc-input-${safeKey}"
-          value="${stock}" min="0" step="1" data-stock="${stock}"
-          oninput="updateCountDiff('${v.color}','${v.size}','${v.channel}', this.value)">
-        <span class="count-diff-cell" id="sc-diff-${safeKey}"
-          style="color:var(--text-dim); font-size: 11px">current: ${stock}</span>
-      </div>`;
-  }).join('');
-
-  section.style.display = 'block';
-  document.getElementById('sc-done-btn').disabled = false;
-}
-
-function updateCountDiff(color, size, channel, rawValue) {
-  const key     = `${color}|${size}|${channel}`;
-  const safeKey = safeId(key);
-  const inputEl = document.getElementById(`sc-input-${safeKey}`);
-  const diffEl  = document.getElementById(`sc-diff-${safeKey}`);
-  if (!inputEl || !diffEl) return;
-
-  const baseStock = parseInt(inputEl.dataset.stock) || 0;
-  const entered   = parseInt(rawValue);
-
-  if (isNaN(entered) || entered === baseStock) {
-    inputEl.className = 'count-input';
-    diffEl.style.color = 'var(--text-dim)';
-    diffEl.innerHTML   = `current: ${baseStock}`;
-    return;
-  }
-
-  const diff = entered - baseStock;
-  const sign = diff > 0 ? '+' : '';
-
-  if (diff > 0) {
-    inputEl.className  = 'count-input changed-up';
-    diffEl.style.color = 'var(--accent)';
-    diffEl.innerHTML   = `<strong>${sign}${diff} more</strong><br><span style="font-size: 10px; color:var(--text-dim)">was ${baseStock}</span>`;
-  } else {
-    inputEl.className  = 'count-input changed-down';
-    diffEl.style.color = 'var(--red)';
-    diffEl.innerHTML   = `<strong>${diff} less</strong><br><span style="font-size: 10px; color:var(--text-dim)">was ${baseStock}</span>`;
-  }
-}
-
-async function applyStockCount() {
-  if (!scProductId) return;
-  const product = allProducts.find(p => p.id === scProductId);
-  if (!product) return;
-
-  const entries = [];
-  for (const v of (product.variants || [])) {
-    const key     = `${v.color}|${v.size}|${v.channel}`;
-    const safeKey = safeId(key);
-    const inputEl = document.getElementById(`sc-input-${safeKey}`);
-    if (!inputEl) continue;
-    const entered   = parseInt(inputEl.value);
-    const baseStock = parseInt(inputEl.dataset.stock) || 0;
-    if (isNaN(entered) || entered === baseStock) continue;
-    entries.push({ productId: product.id, color: v.color, size: v.size, channel: v.channel, delta: entered - baseStock });
-  }
-
-  if (entries.length === 0) {
-    alert('No changes — all entered counts match current stock.');
-    return;
-  }
-
-  const lines = entries.map(e => {
-    const sizeStr  = e.channel === 'single' ? `EU ${e.size}` : e.size;
-    const curr     = (product.variants || []).find(v => v.color === e.color && v.size === e.size && v.channel === e.channel);
-    const curStock = curr ? (parseInt(curr.stock) || 0) : 0;
-    const newStock = Math.max(0, curStock + e.delta);
-    const sign     = e.delta > 0 ? '+' : '';
-    return `  ${e.color}, ${sizeStr}: ${curStock} → ${newStock}  (${sign}${e.delta})`;
-  }).join('\n');
-
-  if (!confirm(`Apply stock count for ${product.name}?\n\n${lines}`)) return;
-
-  const btn = document.getElementById('sc-done-btn');
-  btn.disabled    = true;
-  btn.textContent = 'Saving…';
-  try {
-    const res = await fetch('/api/inventory/adjust', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ adjustments: entries }),
-    });
-    if (!res.ok) throw new Error('Server error');
-    closeStockCountModal();
-    await loadProducts();
-    renderInventory();
-    showNotification('Count Applied', `Stock updated for ${product.name}.`, 'success');
-  } catch (err) {
-    showNotification('Error', 'Failed to apply count. Please try again.', 'error');
-  } finally {
-    btn.disabled    = false;
-    btn.textContent = 'Done';
-  }
-}
-
-// ── NOTIFICATION ──
-function showNotification(title, message, type = 'success') {
-  const notification = document.createElement('div');
-  let bgColor     = 'linear-gradient(135deg, #8fb8a0, #6fc89a)';
-  let borderColor = 'var(--accent)';
-  let textColor   = 'var(--black)';
-  if (type === 'error') { bgColor = 'linear-gradient(135deg, #f44336, #e53935)'; borderColor = 'var(--red)'; textColor = 'white'; }
-  notification.style.cssText = `position:fixed;top:80px;right:32px;background:${bgColor};border:1px solid ${borderColor};color:${textColor};padding:20px 24px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:99999;min-width:320px;animation:slideInRight 0.3s ease forwards;font-family:'DM Mono',monospace;`;
-  notification.innerHTML = `
-    <div style="display:flex; align-items:start; gap:12px">
-      <div style="font-size:24px; font-weight:bold">${type === 'success' ? '✓' : '✕'}</div>
-      <div style="flex:1">
-        <div style="font-size:14px; font-weight:500; margin-bottom:4px">${title}</div>
-        <div style="font-size: 13px; opacity:0.9">${message}</div>
-      </div>
-    </div>`;
-  document.body.appendChild(notification);
-  setTimeout(() => {
-    notification.style.animation = 'slideOutRight 0.3s ease forwards';
-    setTimeout(() => notification.remove(), 300);
-  }, 3000);
 }
 
 // ── DIA SYNC ──
 async function syncInventoryFromDIA() {
   const btn = document.getElementById('inv-dia-sync-btn');
   const lbl = document.getElementById('inv-sync-label');
-  btn.disabled = true;
+  btn.disabled    = true;
   lbl.textContent = 'Syncing from DIA…';
   try {
     const res  = await fetch('/api/dia/sync', { method: 'POST' });
     const data = await res.json();
     if (data.ok) {
-      lbl.textContent = `Synced — ${data.stockCount} variants from DIA`;
+      lbl.textContent = `Synced — ${data.stockCount} products from DIA`;
       await loadProducts();
       renderInventory();
     } else {
@@ -1015,27 +269,12 @@ async function syncInventoryFromDIA() {
   btn.disabled = false;
 }
 
-async function loadDIASyncStatus() {
-  try {
-    const res  = await fetch('/api/dia/status');
-    const data = await res.json();
-    const lbl  = document.getElementById('inv-sync-label');
-    if (data.stock.lastSync) {
-      const d = new Date(data.stock.lastSync + 'Z');
-      lbl.textContent = `DIA stock · ${data.stock.records} variants · synced ${d.toLocaleString()}`;
-    } else {
-      lbl.textContent = 'Not yet synced from DIA';
-    }
-  } catch (_) {}
-}
-
 // ── INIT ──
 window.addEventListener('load', async () => {
   await checkAuth();
   loadTheme();
   await loadProducts();
   renderInventory();
-  loadDIASyncStatus();
 });
 </script>
 </body>

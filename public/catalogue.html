@@ -48,9 +48,7 @@
     <div class="nav-item active" onclick="showPage('catalogue', this)">
       <span class="nav-icon">◫</span> All Products
     </div>
-    <div class="nav-item" onclick="showPage('add', this)">
-      <span class="nav-icon">+</span> Add Product
-    </div>
+
     <div class="nav-item" onclick="window.location='inventory.html'">
       <span class="nav-icon">◧</span> Inventory
     </div>
@@ -104,77 +102,6 @@
     <div class="cat-grid" id="catalogue-grid"></div>
   </div>
 
-  <!-- ════ ADD PRODUCT ════ -->
-  <div class="page" id="page-add">
-    <div class="section-head">
-      <div class="section-title">Add New Product</div>
-      <div class="section-line"></div>
-    </div>
-
-    <div style="max-width: 760px">
-      <div style="background:var(--deep); border:1px solid var(--border); padding:32px">
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Product Name</label>
-            <input type="text" class="form-input" id="f-name" placeholder="e.g. Linen Blazer">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Reference Code</label>
-            <input type="text" class="form-input" id="f-ref" placeholder="e.g. ATL-BLZ-001">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Category</label>
-            <select class="form-select" id="f-cat">
-              <option value="tops">Tops</option>
-              <option value="bottoms">Bottoms</option>
-              <option value="outerwear">Outerwear</option>
-              <option value="accessories">Accessories</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Selling Price ($)</label>
-            <input type="number" class="form-input" id="f-price" placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Wholesale Price ($)</label>
-            <input type="number" class="form-input" id="f-wholesale" placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Season</label>
-            <input type="text" class="form-input" id="f-season" placeholder="e.g. SS 2026">
-          </div>
-          <div class="form-group full">
-            <label class="form-label">Description / Notes</label>
-            <textarea class="form-input" id="f-desc" rows="3" placeholder="Fabric, cut, season notes…" style="resize:vertical; font-family:'DM Mono',monospace"></textarea>
-          </div>
-          <div class="form-group full">
-            <label class="form-label">Color Variants & Stock</label>
-            <div id="ap-wholesale-section"></div>
-            <div id="ap-single-section" style="margin-top:16px"></div>
-          </div>
-          <div class="form-group full">
-            <label class="form-label">Product Photo</label>
-            <div id="add-image-area" onclick="document.getElementById('f-image').click()" style="border:1px dashed var(--border); border-radius:4px; height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; position:relative; overflow:hidden; transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div id="add-image-placeholder" style="display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none">
-                <div style="font-size:28px; opacity:0.3">📷</div>
-                <div style="font-size: 12px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase">Click to upload photo</div>
-                <div style="font-size: 11px; color:var(--text-dim)">JPG, PNG, WEBP — max 5MB</div>
-              </div>
-              <img id="add-image-preview" style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover">
-            </div>
-            <input type="file" id="f-image" accept="image/*" style="display:none" onchange="handleAddImagePreview(this)">
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn-primary" onclick="addProduct()">Add to Catalogue</button>
-          <button class="btn-secondary" onclick="clearForm()">Clear</button>
-        </div>
-        <div id="form-msg" style="margin-top:14px; font-size: 13px; color:var(--accent); display:none">
-          ✓ Product added to catalogue
-        </div>
-      </div>
-    </div>
-  </div>
 
 </div><!-- /main -->
 
@@ -384,7 +311,7 @@ function showPage(id, el) {
   target.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
-  const titles = { catalogue: 'Product Catalogue', add: 'Add New Product' };
+  const titles = { catalogue: 'Product Catalogue' };
   document.getElementById('topbar-title').textContent = titles[id] || '';
   if (id === 'catalogue') filterCatalogue();
 }
