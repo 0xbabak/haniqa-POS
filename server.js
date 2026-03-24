@@ -509,9 +509,15 @@ app.post('/api/dia/sync', requireAuth, async (req, res) => {
 app.get('/api/dia/inventory', requireAuth, (req, res) => {
   try {
     const rows = db.all(`
-      SELECT stokkodu, stokadi, renk AS kategori_kodu, beden AS kategori, miktar, synced_at
-      FROM dia_stock_cache
-      ORDER BY stokadi
+      SELECT
+        st.stokkodu, st.stokadi,
+        st.renk AS kategori_kodu, st.beden AS kategori,
+        st.miktar, st.synced_at,
+        COALESCE(MAX(sl.birimfiyat), 0) AS price
+      FROM dia_stock_cache st
+      LEFT JOIN dia_sales_cache sl ON sl.stokkodu = st.stokkodu
+      GROUP BY st.stokkodu
+      ORDER BY st.stokadi
     `);
 
     const products = rows.map(r => ({
@@ -519,6 +525,8 @@ app.get('/api/dia/inventory', requireAuth, (req, res) => {
       ref:      r.stokkodu,
       name:     r.stokadi,
       category: r.kategori || r.kategori_kodu || '',
+      price:    parseFloat(r.price) || 0,
+      stock:    parseFloat(r.miktar) || 0,
       variants: [{
         color:   '__dia__',
         size:    '',

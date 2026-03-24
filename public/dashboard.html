@@ -162,16 +162,11 @@
         <button class="ch-btn"        id="ch-wholesale"  onclick="setChannel('wholesale',this)">Wholesale</button>
         <button class="ch-btn"        id="ch-single"     onclick="setChannel('single',this)">Single</button>
       </div>
-      <div style="width:1px; height:18px; background:var(--border); margin:0 2px"></div>
-      <div style="display:flex; gap:4px; align-items:center">
-        <button class="src-btn active" id="src-pos" onclick="setSource('pos',this)">POS</button>
-        <button class="src-btn"        id="src-dia" onclick="setSource('dia',this)">DIA</button>
-      </div>
     </div>
   </div>
 
-  <!-- DIA STATUS BAR -->
-  <div class="dia-status-bar" id="dia-status-bar">
+  <!-- DIA STATUS BAR — always visible, DIA is always the data source -->
+  <div class="dia-status-bar visible" id="dia-status-bar">
     <div class="dia-sync-dot" id="dia-sync-dot"></div>
     <span id="dia-status-text">Checking DIA sync status…</span>
     <button class="dia-sync-btn" id="dia-sync-btn" onclick="syncDIA()">Sync Now</button>
@@ -325,25 +320,7 @@ let MONTHS          = [];
 let MONTHLY_UNITS   = [];
 let MONTHLY_REVENUE = [];
 let currentChannel  = 'both';
-let currentSource   = 'pos';
-
-// ── SOURCE TOGGLE ──
-function setSource(src, el) {
-  currentSource = src;
-  document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  const bar = document.getElementById('dia-status-bar');
-  const chGroup = document.getElementById('channel-toggle-group');
-  if (src === 'dia') {
-    bar.classList.add('visible');
-    chGroup.style.display = 'none';
-    refreshDIAStatus();
-  } else {
-    bar.classList.remove('visible');
-    chGroup.style.display = '';
-  }
-  loadDashboard();
-}
+const currentSource = 'dia'; // Always DIA — single source of truth
 
 async function refreshDIAStatus() {
   try {
@@ -571,8 +548,8 @@ function closeModal(e) {
 
 // ── LOAD DASHBOARD ──
 async function loadDashboard() {
-  const ch  = currentSource === 'dia' ? 'both' : currentChannel;
-  const src = currentSource;
+  const ch  = currentChannel;
+  const src = 'dia';
   const from = document.getElementById('date-from').value;
   const to   = document.getElementById('date-to').value;
 
@@ -614,6 +591,7 @@ async function loadDashboard() {
 window.addEventListener('load', async () => {
   await checkAuth();
   loadTheme();
+  refreshDIAStatus();
   await loadDashboard();
 });
 

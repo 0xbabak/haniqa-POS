@@ -266,13 +266,9 @@
       <span></span><span></span><span></span>
     </button>
     <div class="topbar-title" id="topbar-title">Analytics</div>
-    <div style="display:flex; gap:4px; align-items:center; margin-left:auto">
-      <button class="horizon-btn active" id="ai-src-pos" onclick="setAiSource('pos',this)" style="background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px">POS</button>
-      <button class="horizon-btn" id="ai-src-dia" onclick="setAiSource('dia',this)" style="background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px">DIA</button>
-    </div>
   </div>
-  <!-- DIA STATUS BAR (analytics) -->
-  <div id="ai-dia-bar" style="display:none; align-items:center; gap:10px; padding:5px 16px; background:rgba(201,168,76,0.07); border-bottom:1px solid rgba(201,168,76,0.2); font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim)">
+  <!-- DIA STATUS BAR — always visible, DIA is always the data source -->
+  <div id="ai-dia-bar" style="display:flex; align-items:center; gap:10px; padding:5px 16px; background:rgba(201,168,76,0.07); border-bottom:1px solid rgba(201,168,76,0.2); font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim)">
     <div id="ai-dia-dot" style="width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0"></div>
     <span id="ai-dia-txt">Checking DIA status…</span>
     <button id="ai-dia-sync-btn" onclick="syncAndReload()" style="margin-left:auto;padding:3px 10px;font-family:'DM Mono',monospace;font-size:11px;background:transparent;border:1px solid rgba(201,168,76,0.4);color:#c9a84c;cursor:pointer;border-radius:2px">Sync &amp; Recalculate</button>
@@ -522,22 +518,7 @@ const GOLD = '#c9a84c';
 
 // ── HORIZON STATE ──
 let currentHorizon = '1w';
-let aiDataSource   = 'pos';
-
-function setAiSource(src, el) {
-  aiDataSource = src;
-  document.getElementById('ai-src-pos').classList.remove('active');
-  document.getElementById('ai-src-dia').classList.remove('active');
-  el.classList.add('active');
-  const bar = document.getElementById('ai-dia-bar');
-  if (src === 'dia') {
-    bar.style.display = 'flex';
-    refreshAiDiaStatus();
-  } else {
-    bar.style.display = 'none';
-  }
-  reloadAnalytics();
-}
+const aiDataSource = 'dia'; // Always DIA — single source of truth
 
 async function refreshAiDiaStatus() {
   try {
@@ -1193,6 +1174,7 @@ async function sendChatMessage() {
 window.addEventListener('load', async () => {
   await checkAuth();
   loadTheme();
+  refreshAiDiaStatus();
   await loadAnalytics();
 
   const hash = window.location.hash.replace('#', '');
