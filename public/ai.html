@@ -282,13 +282,21 @@
       </div>
 
       <!-- Horizon selector -->
-      <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-shrink:0">
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-shrink:0; flex-wrap:wrap">
         <span style="font-size:11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-right:4px">Forecast:</span>
         <button class="horizon-btn active" id="hz-1w" onclick="setHorizon('1w', this)">1 Week</button>
         <button class="horizon-btn"        id="hz-2w" onclick="setHorizon('2w', this)">2 Weeks</button>
         <button class="horizon-btn"        id="hz-1m" onclick="setHorizon('1m', this)">1 Month</button>
         <button class="horizon-btn"        id="hz-2m" onclick="setHorizon('2m', this)">2 Months</button>
         <button class="reload-btn" id="reload-btn" onclick="reloadAnalytics()" title="Recalculate">↻</button>
+      </div>
+      <!-- History window selector -->
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-shrink:0; flex-wrap:wrap">
+        <span style="font-size:11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-right:4px">History:</span>
+        <button class="horizon-btn"        id="hw-2w"  onclick="setHistory('2',  this)">2 Weeks</button>
+        <button class="horizon-btn active" id="hw-4w"  onclick="setHistory('4',  this)">4 Weeks</button>
+        <button class="horizon-btn"        id="hw-8w"  onclick="setHistory('8',  this)">8 Weeks</button>
+        <button class="horizon-btn"        id="hw-12w" onclick="setHistory('12', this)">12 Weeks</button>
       </div>
 
       <button onclick="generateFullReport()" style="padding:8px 20px; font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.12em; text-transform:uppercase; background:var(--pink); border:none; color:#fff; cursor:pointer; border-radius:2px; margin-bottom:4px; flex-shrink:0; font-weight:400">⬇ Full Report</button>
@@ -514,8 +522,9 @@ function showPage(id, el) {
 // ── CONSTANTS ──
 const GOLD = '#c9a84c';
 
-// ── HORIZON STATE ──
+// ── HORIZON + HISTORY STATE ──
 let currentHorizon = '1w';
+let currentHistory = '4';  // weeks of history to use (2, 4, 8, 12)
 const aiDataSource = 'dia'; // Always DIA — single source of truth
 
 async function refreshAiDiaStatus() {
@@ -562,7 +571,16 @@ async function syncAndReload() {
 function setHorizon(hz, btn) {
   if (hz === currentHorizon) return;
   currentHorizon = hz;
-  document.querySelectorAll('.horizon-btn').forEach(b => b.classList.remove('active'));
+  // Only deactivate horizon buttons (ids starting with hz-)
+  ['hz-1w','hz-2w','hz-1m','hz-2m'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+  btn.classList.add('active');
+  reloadAnalytics();
+}
+
+function setHistory(weeks, btn) {
+  if (weeks === currentHistory) return;
+  currentHistory = weeks;
+  ['hw-2w','hw-4w','hw-8w','hw-12w'].forEach(id => document.getElementById(id)?.classList.remove('active'));
   btn.classList.add('active');
   reloadAnalytics();
 }
@@ -914,7 +932,7 @@ async function loadAnalytics() {
   showLoading('reorder-table', 'sell-through-list', 'top-performing-list',
               'color-performance-grid', 'forecast-table');
 
-  const src = `source=${aiDataSource}`;
+  const src = `source=${aiDataSource}&historyWeeks=${currentHistory}`;
   try {
     const [productsRes, colorRes, forecastRes, productionRes] = await Promise.all([
       fetch(`/api/analytics/rankings?${src}`),

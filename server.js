@@ -935,9 +935,10 @@ app.get('/api/analytics/production-forecast', requireAuth, (req, res) => {
   const horizonMap   = { '1w': 1, '2w': 2, '1m': 4, '2m': 8 };
   const horizonWeeks = horizonMap[req.query.horizon] || 2;
   const source       = req.query.source || 'pos';
+  const historyWeeks = Math.min(Math.max(parseInt(req.query.historyWeeks) || 4, 2), 52);
   try {
     const products      = source === 'dia' ? getProductsWithStockDIA() : getProductsWithStock();
-    const weeklyHistory = source === 'dia' ? getWeeklyHistoryDIA(16)   : getWeeklyHistory(16);
+    const weeklyHistory = source === 'dia' ? getWeeklyHistoryDIA(historyWeeks) : getWeeklyHistory(historyWeeks);
     res.json(analytics.computeProductionForecast(products, weeklyHistory, horizonWeeks));
   } catch (err) {
     console.error(err);
@@ -946,10 +947,11 @@ app.get('/api/analytics/production-forecast', requireAuth, (req, res) => {
 });
 
 app.get('/api/analytics/forecast', requireAuth, (req, res) => {
-  const source = req.query.source || 'pos';
+  const source       = req.query.source || 'pos';
+  const historyWeeks = Math.min(Math.max(parseInt(req.query.historyWeeks) || 4, 2), 52);
   try {
     const products      = source === 'dia' ? getProductsWithStockDIA() : getProductsWithStock();
-    const weeklyHistory = source === 'dia' ? getWeeklyHistoryDIA(12)   : getWeeklyHistory(12);
+    const weeklyHistory = source === 'dia' ? getWeeklyHistoryDIA(historyWeeks) : getWeeklyHistory(historyWeeks);
     res.json(analytics.computeDemandForecast(products, weeklyHistory));
   } catch (err) {
     console.error(err);
