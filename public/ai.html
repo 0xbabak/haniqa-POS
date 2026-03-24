@@ -612,9 +612,14 @@ function renderSellThrough(products) {
       const sold  = parseInt(p.sold)  || 0;
       const stock = parseInt(p.stock) || 0;
       const rate  = sold + stock > 0 ? Math.round(sold / (sold + stock) * 100) : 0;
-      return { ...p, sold, stock, rate };
+      // Hidden composite score: rate weighted by sales volume.
+      // log10(sold+1) prevents 1-unit products from topping the list
+      // while still rewarding genuine high sell-through on real volumes.
+      const _score = rate * Math.log10(sold + 2);
+      return { ...p, sold, stock, rate, _score };
     })
-    .sort((a, b) => b.rate - a.rate);
+    .filter(p => p.sold > 0)   // hide products with zero sales entirely
+    .sort((a, b) => b._score - a._score);
 
   if (!ranked.length) {
     el.innerHTML = `<div style="padding:30px 0;text-align:center;color:var(--text-dim);font-size: 13px">No product data available.</div>`;

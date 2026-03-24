@@ -134,8 +134,18 @@ function getPriority(daysOfStock, trend, suggestedProduction) {
 // products      : [{ id, name, category, price, stock }]
 // weeklyHistory : { [productId]: { wk: 'YYYY-WW', units: number }[] }
 // horizonWeeks  : integer (1, 2, 4, or 8)
+//
+// Ranking uses a hidden composite score so that high-volume products always
+// rank above low-volume ones within the same priority bucket.
+// Products with wma_weekly < MIN_VELOCITY are excluded entirely — they don't
+// have enough sales activity to produce meaningful production recommendations.
 function computeProductionForecast(products, weeklyHistory, horizonWeeks) {
   const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, ok: 4 };
+  // Priority base scores keep buckets apart even with big WMA differences.
+  const PRIORITY_BASE  = { urgent: 4000, high: 3000, medium: 2000, low: 1000, ok: 0 };
+  // Minimum weekly velocity (units/week) to appear in recommendations.
+  // Below this threshold the product barely sells and isn't worth flagging.
+  const MIN_VELOCITY   = 0.3;
 
   const rows = products.map(p => {
     const history = (weeklyHistory[p.id] || [])
@@ -146,6 +156,11 @@ function computeProductionForecast(products, weeklyHistory, horizonWeeks) {
     const forecast = forecastSeries(history, stock, horizonWeeks);
     const priority = getPriority(forecast.days_of_stock, forecast.trend, forecast.suggested_production);
 
+    // Hidden composite score: priority bucket + velocity (WMA) as tiebreaker.
+    // Multiplying wma by 10 means a 1-unit/week difference within the same
+    // priority bucket shifts the rank more than noise, but never crosses buckets.
+    const _score = PRIORITY_BASE[priority] + forecast.wma_weekly * 10;
+
     return {
       id:                   p.id,
       name:                 p.name,
@@ -155,21 +170,21 @@ function computeProductionForecast(products, weeklyHistory, horizonWeeks) {
       weeks_of_data:        history.length,
       priority,
       priority_order:       PRIORITY_ORDER[priority],
+      _score,
       ...forecast,
     };
   });
 
   return rows
-    .filter(r => r.priority !== 'ok')
-    .sort((a, b) =>
-      a.priority_order - b.priority_order ||
-      b.suggested_production - a.suggested_production
-    );
+    .filter(r => r.priority !== 'ok' && r.wma_weekly >= MIN_VELOCITY)
+    .sort((a, b) => b._score - a._score);
 }
 
 
 // ── DEMAND FORECAST (4-week rolling, for the forecast table section) ──────────
 function computeDemandForecast(products, weeklyHistory) {
+  const MIN_VELOCITY = 0.3;
+
   return products
     .map(p => {
       const history = (weeklyHistory[p.id] || [])
@@ -179,6 +194,7 @@ function computeDemandForecast(products, weeklyHistory) {
       if (!history.length) return null;
 
       const f = forecastSeries(history, parseInt(p.stock) || 0, 4);
+      if (f.wma_weekly < MIN_VELOCITY) return null; // skip barely-selling products
       return {
         product_id:      p.id,
         name:            p.name,
@@ -193,7 +209,7 @@ function computeDemandForecast(products, weeklyHistory) {
       };
     })
     .filter(Boolean)
-    .sort((a, b) => b.total_projected - a.total_projected);
+    .sort((a, b) => b.base_weekly - a.base_weekly); // rank by actual velocity, not projected total
 }
 
 
