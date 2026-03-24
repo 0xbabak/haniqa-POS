@@ -877,6 +877,10 @@ function getWeeklyHistory(weeks = 16) {
   return history;
 }
 
+// Non-product codes to exclude from all analytics (delivery charges, shipping, etc.)
+const DIA_NON_PRODUCT_PATTERN = `AND stokkodu NOT GLOB '*[A-Za-z][A-Za-z][A-Za-z]*'
+      AND stokkodu NOT IN ('DELIVERY','KARGO','NAKLİYE','HİZMET','TESLİMAT')`;
+
 // Shared helper: fetch weekly history from DIA wholesale sales cache
 function getWeeklyHistoryDIA(weeks = 16) {
   const days = weeks * 7;
@@ -886,7 +890,9 @@ function getWeeklyHistoryDIA(weeks = 16) {
       strftime('%Y-%W', tarih) AS wk,
       SUM(miktar)              AS units
     FROM dia_sales_cache
-    WHERE tarih >= date('now', '-${days} days') AND stokkodu != ''
+    WHERE tarih >= date('now', '-${days} days')
+      AND stokkodu != ''
+      AND stokkodu NOT IN ('DELIVERY','KARGO','NAKLİYE','HİZMET','TESLİMAT')
     GROUP BY stokkodu, wk
     ORDER BY stokkodu, wk
   `);
@@ -909,17 +915,18 @@ function getProductsWithStock() {
 // Shared helper: fetch products with stock from DIA cache.
 // Builds the product list from dia_sales_cache (guaranteed to have stokkodu
 // after the field-name fix) and LEFT JOINs stock from dia_stock_cache.
+// Excludes non-product codes (delivery charges, shipping fees, etc.)
 function getProductsWithStockDIA() {
   return db.all(`
     SELECT
-      ds.stokkodu                          AS id,
-      ds.stokkodu                          AS ref,
-      COALESCE(p.name, MAX(ds.stokadi))    AS name,
-      COALESCE(p.category, '')             AS category,
+      ds.stokkodu                           AS id,
+      ds.stokkodu                           AS ref,
+      COALESCE(p.name, MAX(ds.stokadi))     AS name,
+      COALESCE(p.category, '')              AS category,
       COALESCE(p.price, MAX(ds.birimfiyat)) AS price,
-      COALESCE(st.stock, 0)                AS stock
+      COALESCE(st.stock, 0)                 AS stock
     FROM dia_sales_cache ds
-    LEFT JOIN products p  ON p.ref = ds.stokkodu
+    LEFT JOIN products p ON p.ref = ds.stokkodu
     LEFT JOIN (
       SELECT stokkodu, SUM(miktar) AS stock
       FROM dia_stock_cache
@@ -927,7 +934,10 @@ function getProductsWithStockDIA() {
       GROUP BY stokkodu
     ) st ON st.stokkodu = ds.stokkodu
     WHERE ds.stokkodu != ''
+      AND ds.stokkodu NOT IN ('DELIVERY','KARGO','NAKLİYE','HİZMET','TESLİMAT')
+      AND LENGTH(ds.stokkodu) > 0
     GROUP BY ds.stokkodu
+    HAVING COUNT(*) >= 2
   `);
 }
 
@@ -1659,6 +1669,17 @@ app.post('/api/chat', requireAuth, async (req, res) => {
 // ── START ─────────────────────────────────────────────────────────────────────
 
 init().then(() => {
+  // Remove any non-product entries (delivery charges etc.) from existing cache
+  try {
+    const deleted = db.run(
+      `DELETE FROM dia_sales_cache
+       WHERE stokkodu IN ('DELIVERY','KARGO','NAKLİYE','HİZMET','TESLİMAT')
+          OR (LENGTH(stokkodu) > 2 AND stokkodu GLOB '[A-Za-z][A-Za-z][A-Za-z]*'
+              AND stokkodu NOT GLOB '*[0-9]*')`
+    );
+    if (deleted?.changes > 0) console.log(`[startup] Removed ${deleted.changes} non-product rows from dia_sales_cache`);
+  } catch (_) {}
+
   dia.scheduleNightlySync(db);
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`\n  haniqa running at http://localhost:${PORT}\n`));

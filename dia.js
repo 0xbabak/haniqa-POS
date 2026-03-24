@@ -186,7 +186,16 @@ async function syncSales(db) {
   }
 
   // Exclude return records (turu=8 = Toptan Satış İade); belt-and-suspenders guard.
-  const sales = list.filter(r => String(r.turu) !== '8' && !String(r.turuack ?? '').includes('İade'));
+  // Also exclude known non-product line items (delivery charges, shipping fees, etc.)
+  const NON_PRODUCT_CODES = new Set(['DELIVERY', 'KARGO', 'NAKLİYE', 'NAKLİYA', 'HİZMET', 'TESLİMAT', 'SERVİS']);
+  const sales = list.filter(r => {
+    if (String(r.turu) === '8' || String(r.turuack ?? '').includes('İade')) return false;
+    const code = String(r.stokkartkodu ?? '').trim().toUpperCase();
+    if (!code || NON_PRODUCT_CODES.has(code)) return false;
+    // Skip codes that are purely alphabetic (service/fee placeholders, no product number)
+    if (/^[A-ZÇĞİÖŞÜ\s]+$/i.test(code)) return false;
+    return true;
+  });
   console.log(`[DIA sales] After filtering returns: ${sales.length} sales records`);
 
   const doSync = db.transaction(() => {

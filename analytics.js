@@ -144,8 +144,8 @@ function computeProductionForecast(products, weeklyHistory, horizonWeeks) {
   // Priority base scores keep buckets apart even with big WMA differences.
   const PRIORITY_BASE  = { urgent: 4000, high: 3000, medium: 2000, low: 1000, ok: 0 };
   // Minimum weekly velocity (units/week) to appear in recommendations.
-  // Below this threshold the product barely sells and isn't worth flagging.
-  const MIN_VELOCITY   = 0.3;
+  // Below this threshold the product barely sells — less than 1 unit every 2 weeks.
+  const MIN_VELOCITY   = 0.5;
 
   const rows = products.map(p => {
     const history = (weeklyHistory[p.id] || [])
@@ -176,14 +176,20 @@ function computeProductionForecast(products, weeklyHistory, horizonWeeks) {
   });
 
   return rows
-    .filter(r => r.priority !== 'ok' && r.wma_weekly >= MIN_VELOCITY)
+    .filter(r => {
+      if (r.priority === 'ok') return false;
+      if (r.wma_weekly < MIN_VELOCITY) return false;
+      // Require at least 2 weeks with non-zero sales — one lucky sale shouldn't trigger production
+      const nonZeroWeeks = (weeklyHistory[r.id] || []).filter(w => w.units > 0).length;
+      return nonZeroWeeks >= 2;
+    })
     .sort((a, b) => b._score - a._score);
 }
 
 
 // ── DEMAND FORECAST (4-week rolling, for the forecast table section) ──────────
 function computeDemandForecast(products, weeklyHistory) {
-  const MIN_VELOCITY = 0.3;
+  const MIN_VELOCITY = 0.5;
 
   return products
     .map(p => {
