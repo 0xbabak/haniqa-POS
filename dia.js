@@ -28,13 +28,26 @@ let _syncBusy   = false;
 
 // ── CORE HTTP ─────────────────────────────────────────────────────────────────
 async function diaPost(body, url = DIA_SCF_URL) {
-  const res = await fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`DIA HTTP ${res.status}`);
-  return res.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000); // 60 s timeout
+  try {
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+      signal:  controller.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`DIA HTTP ${res.status}: ${text.slice(0, 200)}`);
+    if (!text || !text.trim()) throw new Error(`DIA returned empty response from ${url}`);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`DIA JSON parse error: ${e.message} — body: ${text.slice(0, 300)}`);
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ── LOGIN / SESSION ───────────────────────────────────────────────────────────
