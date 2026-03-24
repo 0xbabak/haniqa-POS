@@ -820,13 +820,15 @@ app.get('/api/analytics/category-revenue', requireAuth, (req, res) => {
 });
 
 app.get('/api/analytics/rankings', requireAuth, (req, res) => {
-  const source = req.query.source || 'pos';
+  const source       = req.query.source || 'pos';
+  const historyWeeks = Math.min(Math.max(parseInt(req.query.historyWeeks) || 12, 2), 52);
+  const days         = historyWeeks * 7;
   try {
     if (source === 'dia') {
       return res.json(db.all(`
         SELECT
           ds.stokkodu                           AS ref,
-          COALESCE(p.name, ds.stokadi)          AS name,
+          COALESCE(p.name, MAX(ds.stokadi))     AS name,
           COALESCE(p.category, '')              AS category,
           COALESCE(p.price, MAX(ds.birimfiyat)) AS price,
           COALESCE(p.id, 0)                     AS id,
@@ -838,6 +840,8 @@ app.get('/api/analytics/rankings', requireAuth, (req, res) => {
           SELECT stokkodu, SUM(miktar) AS stock FROM dia_stock_cache GROUP BY stokkodu
         ) st ON st.stokkodu = ds.stokkodu
         WHERE ds.stokkodu != ''
+          AND ds.stokkodu NOT IN ('DELIVERY','KARGO','NAKLİYE','HİZMET','TESLİMAT')
+          AND ds.tarih >= date('now', '-${days} days')
         GROUP BY ds.stokkodu
         ORDER BY sold DESC
       `));
@@ -848,7 +852,9 @@ app.get('/api/analytics/rankings', requireAuth, (req, res) => {
         COALESCE((SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id), 0) AS stock
       FROM products p
       LEFT JOIN transaction_items ti ON ti.product_id = p.id
-      LEFT JOIN transactions t ON t.id = ti.transaction_id AND t.type = 'sale' AND (t.status = 'completed' OR t.status IS NULL)
+      LEFT JOIN transactions t ON t.id = ti.transaction_id
+        AND t.type = 'sale' AND (t.status = 'completed' OR t.status IS NULL)
+        AND t.created_at >= datetime('now', '-${days} days')
       GROUP BY p.id
       ORDER BY sold DESC
     `));
