@@ -119,71 +119,90 @@ function forecastSeries(weeklySales, currentStock, horizonWeeks, leadTimeDays = 
 }
 
 
-// ── PRODUCTION PRIORITY ───────────────────────────────────────────────────────
-function getPriority(daysOfStock, trend, suggestedProduction) {
-  if (suggestedProduction === 0) return 'ok';
-  if (daysOfStock === null || daysOfStock <= 0) return 'urgent';
-  if (daysOfStock < 3)                          return 'urgent';
-  if (daysOfStock < 7 || (daysOfStock < 14 && trend === 'rising')) return 'high';
-  if (daysOfStock < 21)                         return 'medium';
-  return 'low';
-}
-
-
 // ── PRODUCTION FORECAST ───────────────────────────────────────────────────────
 // products      : [{ id, name, category, price, stock }]
 // weeklyHistory : { [productId]: { wk: 'YYYY-WW', units: number }[] }
-// horizonWeeks  : integer (1, 2, 4, or 8)
+// horizonWeeks  : the user-selected forecast window (1w / 2w / 1m / 2m)
 //
-// Ranking uses a hidden composite score so that high-volume products always
-// rank above low-volume ones within the same priority bucket.
-// Products with wma_weekly < MIN_VELOCITY are excluded entirely — they don't
-// have enough sales activity to produce meaningful production recommendations.
+// Logic: "target coverage" model — flag products whose current stock covers
+// fewer than TARGET_COVER_WEEKS at the current sales velocity.
+// Suggested production = units needed to bring stock back up to TARGET_COVER_WEEKS.
+// This is far more actionable than a pure "will I run out in N days?" model,
+// and naturally shows all meaningful products regardless of horizon selection.
+//
+// Priority is based on weeks-of-cover, not absolute days:
+//   URGENT  < 1 week  cover
+//   HIGH    < 2 weeks cover
+//   MEDIUM  < 3 weeks cover
+//   LOW     < TARGET  weeks cover
+//
+// Ranking uses a hidden composite score = priority_base + wma_weekly × 10
+// so high-volume products always rank above low-volume ones within each bucket.
 function computeProductionForecast(products, weeklyHistory, horizonWeeks) {
-  const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, ok: 4 };
-  // Priority base scores keep buckets apart even with big WMA differences.
-  const PRIORITY_BASE  = { urgent: 4000, high: 3000, medium: 2000, low: 1000, ok: 0 };
-  // Minimum weekly velocity (units/week) to appear in recommendations.
-  // 0.2/wk ≈ at least 1 unit sold per 5 weeks — low bar, but filters true one-offs.
-  const MIN_VELOCITY   = 0.2;
+  const TARGET_COVER_WEEKS = 4;   // aim to always have 4 weeks of stock on hand
+  const MIN_VELOCITY       = 0.2; // exclude products selling < 0.2 units/week
 
-  const rows = products.map(p => {
+  const PRIORITY_BASE = { urgent: 4000, high: 3000, medium: 2000, low: 1000 };
+
+  const rows = [];
+
+  for (const p of products) {
     const history = (weeklyHistory[p.id] || [])
       .sort((a, b) => a.wk.localeCompare(b.wk))
       .map(w => w.units);
 
-    const stock    = parseInt(p.stock) || 0;
+    if (!history.length) continue;
+
+    const stock    = parseFloat(p.stock) || 0;
     const forecast = forecastSeries(history, stock, horizonWeeks);
-    const priority = getPriority(forecast.days_of_stock, forecast.trend, forecast.suggested_production);
+    const wma      = forecast.wma_weekly;
 
-    // Hidden composite score: priority bucket + velocity (WMA) as tiebreaker.
-    // Multiplying wma by 10 means a 1-unit/week difference within the same
-    // priority bucket shifts the rank more than noise, but never crosses buckets.
-    const _score = PRIORITY_BASE[priority] + forecast.wma_weekly * 10;
+    if (wma < MIN_VELOCITY) continue;
 
-    return {
-      id:                   p.id,
-      name:                 p.name,
-      category:             p.category || '',
-      price:                parseFloat(p.price) || 0,
-      current_stock:        stock,
-      weeks_of_data:        history.length,
+    const weeksOfCover = wma > 0 ? stock / wma : 999;
+
+    // Only show products below target coverage
+    if (weeksOfCover >= TARGET_COVER_WEEKS) continue;
+
+    // Priority by weeks-of-cover
+    const priority = weeksOfCover <= 0   ? 'urgent'
+                   : weeksOfCover <  1   ? 'urgent'
+                   : weeksOfCover <  2   ? 'high'
+                   : weeksOfCover <  3   ? 'medium'
+                   :                      'low';
+
+    // Suggested production: bring stock up to TARGET_COVER_WEEKS
+    const target_stock          = Math.ceil(wma * TARGET_COVER_WEEKS);
+    const suggested_production  = Math.max(0, target_stock - stock);
+
+    // Hidden composite score: priority bucket + velocity tiebreaker
+    const _score = (PRIORITY_BASE[priority] || 0) + wma * 10;
+
+    rows.push({
+      id:                  p.id,
+      name:                p.name,
+      category:            p.category || '',
+      price:               parseFloat(p.price) || 0,
+      current_stock:       stock,
+      weeks_of_cover:      Math.round(weeksOfCover * 10) / 10,
+      target_stock,
+      suggested_production,
+      weeks_of_data:       history.length,
       priority,
-      priority_order:       PRIORITY_ORDER[priority],
       _score,
-      ...forecast,
-    };
-  });
+      // Pass through forecast fields for display
+      wma_weekly:          forecast.wma_weekly,
+      slope:               forecast.slope,
+      trend:               forecast.trend,
+      confidence:          forecast.confidence,
+      days_of_stock:       forecast.days_of_stock,
+      forecast_total:      forecast.forecast_total,
+      safety_stock:        forecast.safety_stock,
+      cv:                  forecast.cv,
+    });
+  }
 
-  return rows
-    .filter(r => {
-      if (r.priority === 'ok') return false;
-      if (r.wma_weekly < MIN_VELOCITY) return false;
-      // Must have sold in at least 1 week within the history window
-      const nonZeroWeeks = (weeklyHistory[r.id] || []).filter(w => w.units > 0).length;
-      return nonZeroWeeks >= 1;
-    })
-    .sort((a, b) => b._score - a._score);
+  return rows.sort((a, b) => b._score - a._score);
 }
 
 

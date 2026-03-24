@@ -294,9 +294,9 @@
       <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-shrink:0; flex-wrap:wrap">
         <span style="font-size:11px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-right:4px">History:</span>
         <button class="horizon-btn"        id="hw-2w"  onclick="setHistory('2',  this)">2 Weeks</button>
-        <button class="horizon-btn active" id="hw-4w"  onclick="setHistory('4',  this)">4 Weeks</button>
+        <button class="horizon-btn"        id="hw-4w"  onclick="setHistory('4',  this)">4 Weeks</button>
         <button class="horizon-btn"        id="hw-8w"  onclick="setHistory('8',  this)">8 Weeks</button>
-        <button class="horizon-btn"        id="hw-12w" onclick="setHistory('12', this)">12 Weeks</button>
+        <button class="horizon-btn active" id="hw-12w" onclick="setHistory('12', this)">12 Weeks</button>
       </div>
 
       <button onclick="generateFullReport()" style="padding:8px 20px; font-family:'DM Mono',monospace; font-size: 11px; letter-spacing:0.12em; text-transform:uppercase; background:var(--pink); border:none; color:#fff; cursor:pointer; border-radius:2px; margin-bottom:4px; flex-shrink:0; font-weight:400">⬇ Full Report</button>
@@ -524,7 +524,7 @@ const GOLD = '#c9a84c';
 
 // ── HORIZON + HISTORY STATE ──
 let currentHorizon = '1w';
-let currentHistory = '4';  // weeks of history to use (2, 4, 8, 12)
+let currentHistory = '12';  // weeks of history to use (2, 4, 8, 12)
 const aiDataSource = 'dia'; // Always DIA — single source of truth
 
 async function refreshAiDiaStatus() {
@@ -673,25 +673,24 @@ function renderProductionForecast(rows, horizon) {
   const trendCls  = { rising: 'trend-rising', declining: 'trend-declining', stable: 'trend-stable', no_data: '' };
 
   el.innerHTML = rows.map(p => {
-    const pm      = PRIORITY_META[p.priority] || PRIORITY_META.low;
-    const daysStr = p.days_of_stock === null ? '∞ days' : `${p.days_of_stock}d left`;
-    const dataNote = p.weeks_of_data > 0
-      ? `${p.weeks_of_data}w data · WMA ${p.wma_weekly}/wk`
-      : 'No sales history';
+    const pm         = PRIORITY_META[p.priority] || PRIORITY_META.low;
+    const coverColor = p.weeks_of_cover <= 1 ? 'var(--red)' : p.weeks_of_cover < 2 ? 'var(--pink)' : 'var(--text-dim)';
+    const coverStr   = `${p.weeks_of_cover}w cover · target ${p.target_stock}`;
+    const dataNote   = `${p.weeks_of_data}w data · ${p.wma_weekly}/wk`;
 
     return `
     <div style="display:grid;grid-template-columns:1fr 160px 80px 80px;gap:12px;align-items:center;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,0.04)">
       <div>
         <div style="font-size:13px;color:var(--text-bright);font-family:'DM Mono',monospace">${p.name}</div>
         <div style="font-size:11px;color:var(--text-dim);text-transform:capitalize;margin-top:3px">
-          ${p.category} · ${p.current_stock} in stock · <span style="color:${p.days_of_stock !== null && p.days_of_stock < 7 ? 'var(--red)' : 'var(--text-dim)'}">${daysStr}</span>
+          ${p.category} · ${p.current_stock} in stock · <span style="color:${coverColor}">${coverStr}</span>
           · <span style="color:var(--text-dim)">${dataNote}</span>
         </div>
       </div>
       <div style="text-align:center">
         <span style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--text-bright)">${p.suggested_production}</span>
         <span style="font-size:11px;color:var(--text-dim);margin-left:3px">units</span>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">forecast ${p.forecast_total} + ${p.safety_stock} buffer</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">to reach ${p.target_stock} units stock</div>
       </div>
       <div style="text-align:center">
         <span class="${trendCls[p.trend]}" style="font-size:14px">${trendIcon[p.trend] || '—'}</span>
